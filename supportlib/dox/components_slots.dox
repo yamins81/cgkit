@@ -1,0 +1,165 @@
+/** \page comp_slots Components & Slots
+
+This page gives an overview of the component framework that is the basis
+for creating a \em dynamic 3D scene, i.e. one that is animated/simulated.
+The basic idea is to have some \em black \em boxes that can generate
+values that vary with time and that can be connected to the attributes
+we want to be animated. For example, one such black box could output a
+three-dimensional vector which could then be connected to the position of
+a teapot. If this black box now produces a series of values that lie
+on a particular curve we have an animation of a teapot traveling along
+that curve.
+
+\image html "slotexample.jpg"
+
+In this package those black boxes and the teapot are called \em
+components.  A component is a container for \em slots which represent
+the input or output values of their respective component. In the above
+image, the output value of the "curve point generator" (the black box)
+and the position of the teapot are slots. You can also view them as
+"animatable attributes" of an object if they mainly serve as input
+values. Most slots can either serve as input value or output
+value. However, if the value of a slot is actually computed by some
+algorithm then this slot can only be used as output slot.
+
+\section slots Slots
+
+The most important classes in the component framework are the slot classes.
+A slot always contains a value of a particular type (or an array of values, 
+but in this case the entire array is considered to be the actual value).
+For example, the transformation of an object is a slot of type \c mat4,
+the radius of a sphere is a slot of type \c double and so on.
+
+If the values of two slots are of the same type they can be connected
+to each other to create a directed graph. The slot value is then
+propagated along the edges of the graph. \b This \b means \b all \b
+slots \b that \b are \b connected \b to \b each \b other \b always \b
+carry \b the \b same \b value. A slot A that forwards its value to
+another slot B is called the \em controller of that slot. Slot B is
+then a \em dependent of slot A. A slot cannot have more than one controller
+at a time. However, a slot can have an arbitrary number of dependents as
+dependencies can also be established between two slots without one being 
+the controller of the other one.
+
+\image html "slot_controller.png"  "Slot 1 is the controller of slot 2. Both slots will always carry the same value."
+
+Whenever the value of a slot changes, it has to notify its dependents about
+this change so they can take appropriate action. For example, the standard 
+slot implementation invalidates its cache so that next time the value is 
+read the updated value is retrieved from the controlling slot.
+
+For every slot the following statements are always true:
+
+- Every slot carries a value of a particular type.
+- Every slot can be connected to other slots of the same type to propagate
+  its value (i.e. every slot can serve as input for other slots. However,
+  the opposite is \b not always true, that is, not every slot can have
+  a controller).
+- As a consequence of the previous point, every slot can have dependent
+  slots whose value depend on the first slot in a particular way (the 
+  connection in the previous point is one example of a dependency, but 
+  there can also be other dependencies).
+
+The number of connections in an animation or simulation can get rather 
+large which makes the graph update a time-critical operation. That's why
+the standard slot classes are implemented in C++ and made available in
+Python via wrapper classes. It is still possible to derive new slots in 
+Python if special functionality is required for only a few slots or for
+rapid prototyping of new slot types. 
+
+On the C++ side, every slot class has to be subclassed from ISlot which
+is an abstract base class defining the common interface. The support
+library already contains the two template slot classes Slot<T> and
+ArraySlot<T> which can contain a value or array of values of type T.
+In Python these classes are available as DoubleSlot, IntSlot, Vec3Slot, 
+DoubleArraySlot, IntArraySlot, etc.
+
+\subsection interdeps Slot Interdependencies
+
+Occasionally it can happen that you want to have slots where the
+dependency graph is cyclic. This is the case if you have a slot
+carrying a compound value and you also want the individual parts
+of that slot to be available as individual slots.
+For example, this is the case with the transformation of world
+objects. There is the \c transform slot that carries the entire
+transformation as a 4x4 matrix and there are the \c pos, \c rot
+and \c scale slots that each has a part of the transformation.
+If you change the position you also change the transformation and
+if you change the transformation you might also have changed the
+position. If such interdependencies exist it is not allowed to
+use the standard mechanism and add each one as dependent of the
+other one. This would cause an infinite loop if you try to
+retrieve the value. Instead you have to specialize the slots
+and implement the following scheme.
+
+The usual dependency notification scheme is \b not used for interdependent
+slots because this would introduce cycles. Instead there's a dedicated
+\em dependency \em controller that knows all participating slots and 
+takes care of the notification. 
+
+\image html "slot_interdependencies.png"
+
+Whenever the value of a slot changes this slot has to notify the
+dependency controller who in turn will notify all other dependent
+slots.  For each slot there's a separate notification method on the
+dependency controller (\c
+onPosChanged(), \c onRotChanged(), ...), so it knows exactly
+which slot was changed and will send notifications only
+to the dependent slots. These notifications are done by calling
+\c onDependentValueChanged() instead of \c onValueChanged() on all
+dependent slots. The former is called whenever the value change
+came from "within", i.e. from an interdependency, whereas the latter
+is called when the change was triggered from outside. And only
+in the second case the slot has to notify the dependency controller.
+
+There are three possibilities how the value of a slot can change:
+
+- Because the value of the controller (the regular one, not the dependency
+  controller) has changed (i.e. onValueChanged() is called).
+- Because a value was directly set using setValue().
+- Because the value of an interdependent slot has changed.
+
+The first two are external changes whereas the third one is an internal
+change.
+
+When the value is requested from a slot and the slot cache is invalid
+then it is actually the dependency controller that updates the value
+(because it is necessary to get parts of the value from the interdependent
+slots).
+
+Care has to be taken when some slots have controllers set. In this case,
+setting a value on a slot may not automatically validate its cache because
+some interdependent slots with controllers might not allow that new value.
+In the case of the transform slots, this only affects the transform slot
+itself as this is the only slot that has a compound value. Consider the
+following example: The position slot has a controller set that creates
+values procedurally (i.e. it can't receive values), all the other slots
+are without controllers. Setting a new value on the transform slot does
+usually validate the cache as there is no controller. However, the position
+part of the matrix cannot change because the position slot has a controller
+set, so the transform slot either has to update the matrix accordingly
+before storing it in its cache or it has to leave its cache invalid and
+pass the rotation and scale parts on to the corresponding slot so that
+these parts "survive" the process of setting the value.
+In the case of the transform slot and its sub slots, this problem is handled
+as follows: When a new matrix is set on the transform slot, the matrix
+will be stored in the cache but the cache will only be marked as valid
+if no sub slot has a controller set. If there is a controller the cache
+will be marked is invalid (which actually means, that \em some parts
+are invalid but there may still be valid parts). This means, it can happen
+that both, the transform slot and one of its sub slots have invalid caches.
+But in this case, the value in the transform slot has priority over the
+value in the sub slot, so that eventually the correct value will be picked
+up when the value is requested either from the transform slot or from the
+sub slot.
+
+(Note: In the implementation of the above scheme for the transformation,
+it's actually the transformation slot that acts as dependency controller.)
+
+- \link support3d::TransformSlot TransformSlot \endlink (this is also the
+  dependency controller)
+- \link support3d::PositionSlot PositionSlot \endlink
+- \link support3d::RotationSlot RotationSlot \endlink
+- \link support3d::ScaleSlot ScaleSlot \endlink
+
+*/

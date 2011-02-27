@@ -1,0 +1,84 @@
+######################################################################
+# SConstruct file for the support library
+#
+# All .cpp files in the "src" directory are compiled into the core
+# library.
+######################################################################
+
+import sys, glob, os.path
+
+# Read the options
+opts = Options("cpp_config.cfg")
+opts.Add("CPPDEFINES", "Preprocessor symbol definitions", [])
+opts.Add("CPPPATH", "The include directories", [])
+#opts.Add("LIBPATH", "The library directories", [])
+#opts.Add("LIBS", "The libraries to link with", [])
+opts.Add("MSVS_VERSION", "The preferred version of MS Visual Studio")
+
+# Create the construction environment
+env = Environment(options = opts)
+
+# Build the files in "obj"
+env.BuildDir("obj", "src", duplicate=0)
+
+# Build all *.cpp files found in the src directory
+srcfiles = glob.glob("src/*.cpp")
+# Replace the "src" path with "obj"
+srcfiles = map(lambda x: os.path.join("obj", os.path.basename(x)), srcfiles)
+print len(srcfiles), "source files"
+
+# Add the local 'include' directory...
+env.Append(CPPPATH = ["include"])
+
+# Do platform specific stuff...
+if sys.platform=="win32":
+  env.Append(CCFLAGS = ["/GX", "/GR", "/MD", "/W3"])
+  env.Append(CPPDEFINES = ["WIN32", "_LIB"])
+elif sys.platform=="darwin":
+  env.Append(CCFLAGS = ["-arch", "x86_64"])
+  env.Append(CPPPATH = ["/usr/local/include"])
+  env.Append(CCFLAGS = ["-fPIC"])
+else:
+  env.Append(CPPPATH = ["/usr/local/include"])
+  env.Append(CCFLAGS = ["-fPIC"])
+
+# Setup the help message
+Help(opts.GenerateHelpText(env))
+
+# Display the Visual C++ version...
+msvs = env.Dictionary().get("MSVS")
+if msvs!=None:
+    print "Using MSVC %s in %s"%(msvs.get("VERSION", "?"), msvs.get("VCINSTALLDIR", "?"))
+else:
+    try:
+        ver = env.subst("$CXXVERSION")
+        print "C++ compiler version:",ver
+    except:
+        pass
+
+# Do some check to see if Python and the Maya SDK are available...
+conf = env.Configure()
+if not conf.CheckCXXHeader(os.path.join("boost", "shared_ptr.hpp")):
+    print """
+  Apparently the Boost header files cannot be found. Please specify
+  the correct path in the config file via the CPPPATH variable
+  (you can either specify a string with a space separated list of paths
+  or a Python list containing the paths).
+  If you believe the Boost headers are already there and should actually be
+  found, then inspect the file config.log to see more details about why
+  this test failed.
+  To check which paths are in effect invoke "scons --help".
+"""
+    sys.exit(1)
+
+# Read the config file
+#configfile = "cpp_config.cfg"
+#if os.path.exists(configfile):
+#    execfile(configfile)
+#else:
+#    print 70*"-"
+#    print "Warning: No config file available (%s)"%configfile
+#    print 70*"-"
+
+# Build the library
+env.Library("lib/core", source = srcfiles)

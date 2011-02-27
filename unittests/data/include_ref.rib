@@ -1,0 +1,6 @@
+# Normalized RIB
+AttributeBegin
+Translate 4.0 -3.0 0.0
+Color [ 1.0 0.5 0.0 ]
+Sphere 1.0 -1.0 1.0 360.0 "constant string info" [ "This sphere must be stored in include.rib" ]
+AttributeEnd

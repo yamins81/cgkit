@@ -1,0 +1,23 @@
+/** \page menu Menu interfaces
+
+A menu can be described as a tree where the leaves represent the menu
+items or \em markers and the nodes can be either top level menus, submenus
+or \em embedded menus (see figure 1). An embedded menu can be used to
+group related menu items that can then be added or removed as a whole
+without having a submenu. For example, the orange node labeled
+"import" in figure 1 can either be a submenu or an embedded menu. In
+the latter case the "import" node won't have a visual representation
+in the generated menu.
+A marker leaf is used to mark a position in the menu so that you can
+add new menu items \em before or \em after a marker.
+The tree in figure 1 is the interface to the real menu, so the actual
+GUI toolkit is entirely encapsulated.
+
+\image html "menu_tree.png" "Figure 1: An example menu tree"
+
+The leaves are represented by \link menu::MenuItem MenuItem \endlink 
+classes, the markers by \link menu::MenuMarker MenuMarker \endlink 
+classes and the nodes by \link menu::Menu Menu \endlink classes.
+
+*/
+

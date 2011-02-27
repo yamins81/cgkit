@@ -1,0 +1,236 @@
+cgkit tutorial: Custom attributes & primitive variables
+=======================================================
+
+:Author: Matthias Baas (mbaas@users.sourceforge.net)
+:Date:  2004/12/07
+
+.. contents::
+
+This tutorial will explain the different options you have when you
+want to add custom attributes to objects. You can access custom attributes
+in your Python code or in RenderMan shaders.
+
+
+Standard Python attributes
+--------------------------
+
+The first and easiest option you have when you want to create a new 
+attribute is the regular Python attribute access. You can add a new
+attribute just by assigning it to an object::
+
+  >>> from cgkit.all import *
+  >>> s = Sphere()
+  >>> hasattr(s, "spam")
+  False
+  >>> s.spam = "This is a new attribute"
+  >>> hasattr(s, "spam")
+  True
+  >>> print s.spam
+  This is a new attribute  
+
+All this is just regular Python stuff that can be used with most Python
+objects. However, there are a few disadvantages with this approach:
+
+- The new attribute isn't animatable via the usual slot mechanism.
+- The C++ part of cgkit (or any external C++ code) can only access the
+  attribute via the Python/C API which will slow it down.
+- You can only store one value per object whereas you might want to store
+  one value per "subobject" such as faces or vertices.
+
+The next sections will tell you how to remedy these deficiencies.
+
+
+Custom slots
+------------
+
+Instead of just creating a regular Python attribute that holds the
+desired value, you can create a *slot* that will hold the value.
+For example, let's equip the OpenGL point light with an attribute
+that holds the number of photons to emit (which might be used by
+an export plugin that exports into a scene description of a global
+illumination renderer):: 
+
+  >>> lgt = GLPointLight()
+  >>> lgt.photons_slot = IntSlot(10000)
+  >>> lgt.addSlot("photons", lgt.photons_slot)
+
+Here, we create an integer slot that will hold a value of 10000 as default
+value. The last line makes the slot available for everyone else to query::
+
+  >>> for s in lgt.iterSlots(): print s
+  ...
+  angularvel
+  cog
+  constant_attenuation
+  diffuse
+  enabled
+  inertiatensor
+  intensity
+  linear_attenuation
+  linearvel
+  mass
+  photons                <------ here is our new slot
+  pos
+  quadratic_attenuation
+  rot
+  scale
+  specular
+  totalmass
+  transform
+  visible
+  worldtransform
+
+...[**TODO**: *add a paragraph about how to read and write the value.
+Future versions of cgkit might automatically make the value available
+as "photons" attribute. Currently, you have to create this property
+yourself (by using the slotPropertyCode() function, for example.*]...
+
+An export plugin might now test each light source for the photons
+slot and use its value if it's available, otherwise it can just use a
+default value::
+
+  ...
+  if lgt.hasSlot("photons"):
+      photons = lgt.photons_slot.getValue()
+  else:
+      photons = default_value
+  ...
+
+
+By using a slot class to store the attribute we can now animate the value
+just like every other value by connecting it with another slot.
+Furthermore, the attribute is now visible to C++ code and no Python
+code has to be executed if a C++ component reads or sets the value
+of the attribute (the C++ code to test for the photons attribute would
+be quite similar than the above Python example).
+
+Note however, that you can't use this approach with *every* object there 
+is. The object has to be a *component* object (or derived from it such
+as any world object).
+
+
+Primitive variables
+-------------------
+
+In the above examples, the new attribute always just carried *one* value
+(which might have been a list or a tuple, but even then it's still just
+one isolated list or tuple) that belonged to the object where it was
+added. However, sometimes you want to have a finer granularity when
+you add an attribute to a geometric object. The value of the attribute
+might depend on where you actually are on the surface of your geometry.
+Suppose you want to render an outdoor scene where it's snowing and you
+want to store the amount of snow that an object has accumulated. It's
+obvious that the amount of snow is not constant all over a surface. Only
+those surface areas can accumulate snow that "see" the sky, i.e. the snow
+flakes are not blocked. So if your geometry is a triangle mesh you want to 
+create *one* variable that stores a different value for every face or 
+vertex of the mesh. This type of variable is called a *primitive variable*
+and is a specialty of a GeomObject class. The GeomObject classes have
+special methods to manipulate primitive variables. Here is an example
+of a mesh that will get a new "snow" attribute::
+
+  >>> m = TriMesh()
+  >>> m.verts.resize(4)
+
+First, we create an empty mesh and resize the number of vertices so
+that the new variable will hold some values. Now we create the new
+"snow" variable::
+
+  >>> m.geom.newVariable("snow", VARYING, FLOAT)
+  >>> for v in m.geom.iterVariables(): print v
+  ...
+  ('snow', cgkit._core.VarStorage.VARYING, cgkit._core.VarType.FLOAT, 1)
+
+In this case, the variable would hold one floating point value per
+vertex. It's one value per *vertex* as we have declared it as being of
+storage class VARYING. If you would only want one value per face you
+would specify UNIFORM. Other possibilities are CONSTANT, VERTEX and
+USER. When iterating over the variables you just get the declaration
+as a tuple. The fourth value in the tuple is the *multiplicity*. Our
+snow variable just contains one value per vertex. Sometimes you want
+to store an array per vertex in which case the multiplicity would be
+greater than 1 (for example, texture coordinates are defined as "varying
+float[2]").
+
+You have seen how to create a new primitive variable, but you haven't seen
+yet how to read or write the individual values. Calling the newVariable()
+method will also create a new slot with the same name::
+
+  >>> for s in m.geom.iterSlots(): print s
+  ...
+  cog
+  faces
+  inertiatensor
+  snow
+  verts
+
+Actually, this is not a regular slot but an *array slot*. That's why it
+can store one value per vertex. From here on, accessing the primitive
+variable values is not any different from accessing any other array slot::
+
+  >>> snow = m.geom.slot("snow")
+  >>> snow[2] = 0.7
+  >>> print snow[2]
+  0.7
+  >>> for v in snow: print v
+  ...
+  0.0
+  0.0
+  0.7
+  0.0
+
+As you can see you can use an array slot just like a list. The index into
+the list is the index of the vertex to which the snow value belongs (or in 
+case of UNIFORM variables it would be the face index).
+
+Primitive variables are also available in RenderMan shaders. Whenever you
+render a scene using the render tool any previously created primitive
+variable will be attached to the exported geometry. This means, you simply
+have to declare the variable as parameter of your shader and it will
+automatically receive the values you've set in your Python scene. A shader
+that uses the above snow value would look like this::
+
+  surface snowy( ...other parameters...; 
+                 varying float snow = 0.0; )
+  {
+    ...
+  }
+
+Note that you have to use the same storage class and type as before,
+otherwise you'll get an error during rendering.
+
+Standard variables
+~~~~~~~~~~~~~~~~~~
+
+There are a number of standard variables that are used by the various
+components of cgkit. For example, the viewer tool will use normals,
+texture coordinates or color values if they are available on a mesh.
+The following table gives an overview of the standard variables:
+
+========  ================  ======================
+Variable  Declaration       Description
+========  ================  ======================
+N         varying normal    Normals
+st        varying float[2]  Texture coordinates
+Cs        varying color     Colors
+matid     uniform int       Material IDs per face
+========  ================  ======================
+
+For triangle meshes, there's the convention that in case of a
+"varying" variable this variable can also be stored as "user" in which
+case there must also be a variable "uniform int <name>faces[3]" that
+contains the value indices for the three vertices. For example, you
+can either have one "varying float[2] st" variable or a "user float[2] st"
+variable in addition to the "uniform int stfaces[3]" variable. This
+enables you to share texture coordinates among vertices.
+Alternatively, you can also store those variables as "facevarying"
+variables.
+
+The variable "matid" selects one of the materials of the world object
+that should be used for a particular face of a triangle mesh.
+
+---------------------------------------------------------------------
+
+`Back to the tutorial index`_
+
+.. _Back to the tutorial index: ../index.html

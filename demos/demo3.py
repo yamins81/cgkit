@@ -1,0 +1,65 @@
+######################################################################
+# Creating a hierarchy and using expressions
+######################################################################
+
+# Camera
+TargetCamera(
+    pos    = vec3(2,1,2.5),
+    target = vec3(0,0,0),
+    fov    = 40
+)
+
+# Lights
+GLTargetDistantLight( pos=(0,0,1) )
+GLTargetDistantLight( pos=(0,0,-1), diffuse=(1,0.5,0.2), intensity=2 )
+
+######################################################################
+# Center sphere
+######################################################################
+
+hub = Sphere(
+    radius = 0.3,
+    pivot = (0, 0, -0.1),
+    material = GLMaterial( diffuse = (0.8,0.85,0.9) )
+)
+
+# Animate the center sphere (all other objects will move with it)
+e = Expression("mat3().fromEulerZYX(pi*sin(0.2*t), 0, -1.4*t)")
+e.output_slot.connect(hub.rot_slot)
+
+######################################################################
+# Spokes
+######################################################################
+
+# Define the materials for the cylinders and boxes...
+mat1 = GLMaterial( diffuse = (1,1,1) )
+mat2 = GLMaterial( diffuse = (0.7, 0.3, 0.2) )
+mats = [mat1,mat2]
+
+# Create boxes as children of the sphere alternately using mat1 and mat2
+numspokes = 20
+for i in range(numspokes):
+    a = float(i)/numspokes
+
+    # Create cylinders as children of the center sphere
+    c = CCylinder(name = "Spoke%d"%i,
+        pos = (0,0,0),
+        pivot = (0,0,0.5),
+        length = 1.0,
+        radius = 0.02,
+        material = mats[i%2],
+        parent = hub
+    )
+
+    # Animate the rotation of the cylinder
+    # (the z angle will "position" the cylinder at the correct angle around the hub)
+    e = Expression("mat3().fromEulerZYX(0, 0.3*sin(%f+2*t)+pi/2, %f)"%(4*a*pi, 2*a*pi))
+    e.output_slot.connect(c.rot_slot)
+
+    # Create boxes as children of the cylinder
+    b = Box(name = "Box%d"%i,
+        pos = (0,0,-0.5),
+        lx=0.1, ly=0.3, lz=0.1,
+        material = mats[i%2],
+        parent = c
+    )

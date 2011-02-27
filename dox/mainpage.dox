@@ -1,0 +1,86 @@
+/** \mainpage
+
+Overviews:
+
+- \ref comp_slots - This page gives an overview of the component framework
+- \ref coord_systems - The coordinate systems of a world object.
+
+World objects:
+
+- \link box::Box Box \endlink
+- \link quadrics::Sphere Sphere \endlink
+- \link plane::Plane Plane \endlink
+- \link trimesh::TriMesh TriMesh \endlink
+
+- \link targetcamera::TargetCamera TargetCamera \endlink
+
+- \link glpointlight::GLPointLight GLPointLight \endlink
+- \link gltargetspotlight::GLTargetSpotLight GLTargetSpotLight \endlink
+- \link glFreespotlight::GLFreeSpotLight GLFreeSpotLight \endlink
+- \link glfreedistantlight::GLFreeDistantLight GLFreeDistantLight \endlink
+- \link gltargetdistantlight::GLTargetDistantLight GLTargetDistantLight \endlink
+
+- \link lookat::LookAt LookAt \endlink
+
+Base modules:
+
+- \link ::eventmanager eventmanager \endlink
+- \link ::pluginmanager pluginmanager \endlink
+- \link ::preferences preferences \endlink
+- \link ::undo undo \endlink
+
+Main classes:
+
+- \link scene::Scene Scene \endlink
+- \link component::Component Component \endlink
+- \link worldobject::WorldObject WorldObject \endlink
+
+Main GUI classes:
+
+- \link window::Window Window \endlink
+- \link mainwin::MainWindow MainWindow \endlink
+
+- \link menu::Menu Menu \endlink
+- \link menu::MenuItem MenuItem \endlink
+
+- \link keys::Keys Keys \endlink
+
+- \link panels::Panels Panels \endlink
+- \link panels::LayoutNode LayoutNode \endlink
+- \link panels::PanelNode PanelNode \endlink
+- \link panels::PanelWidget PanelWidget \endlink
+- \link panels::PanelWidget PanelWidgetRepository \endlink
+
+Interfaces:
+
+- \link isceneitem::ISceneItem ISceneItem \endlink
+- \link isceneitem::ISceneItemContainer ISceneItemContainer \endlink
+- \link icomponent::IComponent IComponent \endlink
+- \link iworldobject::IWorldObject IWorldObject \endlink
+- \link icamera::ICamera ICamera \endlink
+
+- \link irenderer::IRenderer IRenderer \endlink
+- \link irenderer::IRenderInstance IRenderInstance \endlink
+
+Classes in %_core (wrapped C++ classes):
+
+- vec3, vec4, mat3, mat4, [quat]
+
+- ISlot
+- DoubleSlot, BoolSlot, IntSlot, Vec3Slot, Vec4Slot, Mat3Slot, Mat4Slot, 
+  [QuatSlot], PySlot
+- DoubleArraySlot, IntArraySlot, BoolArraySlot, Vec3ArraySlot, Vec4ArraySlot,
+  Mat3ArraySlot, Mat4ArraySlot, PyArraySlot
+- PositionSlot
+
+- BoundingBox
+- Component
+- WorldObject
+
+- GeomObject
+- SphereGeom
+
+The documentation of the C++ classes can be found 
+<a href="../supportlib/html/index.html">here.</a>
+
+*/

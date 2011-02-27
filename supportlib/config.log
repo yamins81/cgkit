@@ -1,0 +1,17 @@
+file /Users/dyamins/Desktop/cgkit-mod/supportlib/SConstruct,line 60:
+	Configure(confdir = .sconf_temp)
+scons: Configure: Checking for C++ header file boost/shared_ptr.hpp... 
+scons: Configure: ".sconf_temp/conftest_0.cpp" is up to date.
+scons: Configure: The original builder output was:
+  |.sconf_temp/conftest_0.cpp <-
+  |  |
+  |  |#include "boost/shared_ptr.hpp"
+  |  |
+  |  |
+  |
+scons: Configure: ".sconf_temp/conftest_0.o" is up to date.
+scons: Configure: The original builder output was:
+  |g++ -o .sconf_temp/conftest_0.o -c -arch x86_64 -fPIC -Iinclude -I/usr/local/include .sconf_temp/conftest_0.cpp
+  |
+scons: Configure: (cached) yes
+

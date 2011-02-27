@@ -1,0 +1,379 @@
+cgkit tutorial: Baking texture maps
+===================================
+
+:Author: Matthias Baas (mbaas@users.sourceforge.net)
+:Date:  2005/06/18
+
+.. contents::
+
+.. _Rendering with RenderMan: ../renderman/renderman.html
+
+As explained in the tutorial `Rendering with RenderMan`_
+the render tool can be used to render a scene via a RenderMan compliant
+renderer. But instead of producing a final image, the render tool can
+also be used to render a texture map that captures such things as
+ambient occlusion or the full illumination including shadows and global
+illumination effects. Such maps can then be used to rerender the scene
+much more quickly or the map can be used for interactive rendering in
+games or VR applications.
+
+This tutorial explains the steps necessary to bake a texture map such
+as an ambient occlusion map. However, the steps are the same if you
+want to bake anything else. You can bake anything your renderer supports.
+
+The files for doing this tutorial are available in the archive
+bake_ao.zip_ (195KB).
+
+.. _bake_ao.zip: bake_ao.zip
+
+
+Requirements
+------------
+
+To be able to bake a texture map for a 3D model you need a model that
+already has appropriate texture coordinates for baking. So this has
+to be done in the modeling package you are using for creating the model
+in the first place. 
+
+Then you need a RenderMan compliant renderer. No special baking functionality
+is required on part of the renderer, so any RenderMan renderer will do.
+Note however, that in this tutorial we are using the Shading Language
+function ``occlusion()`` assuming that it uses ray tracing internally.
+So if you are using one of the freely available renderers, you can use
+3Delight or Pixie, but as Aqsis doesn't support ray tracing yet,
+it won't produce the desired results (it is possible to create the below
+images with Aqsis as well, but it requires a slightly different technique
+which isn't directly supported by cgkit yet).
+
+Preparing the model
+-------------------
+
+The first step is to create the model in your favorite modeling package.
+Currently, only polygonal models can be used for baking. For this tutorial,
+we're using the model in the following image (which doesn't represent
+anything particular, it's just an object with a few concavities to show
+the effect of ambient occlusion):
+
+.. image:: model.jpg
+
+As we want to apply the baked texture map later on we need texture
+coordinates for the baked map. How exactly you are doing that is up to
+you.  You can either assign the texture coordinates manually to have
+full control about the uv layout. In this case, you have to make sure
+that the final uv layout has no overlapping parts, otherwise it
+wouldn't later be possible to assign a separate color for each surface point
+on your model. You should also make sure that there's a little space
+around each texture area to prevent the color from one texture area 
+"leaking" through to another face where it doesn't belong to.
+Instead of manually assigning the texture coordinates you
+can also let your modeling package do the job. That's how I obtained
+the following uv layout for the above model:
+
+.. image:: uvlayout.png
+
+Now the model is ready for baking. You just have to save it into a format
+that cgkit can read. Here, I saved the model in the Wavefront Object format.
+
+Baking the map
+--------------
+
+For baking a map we have to set a few parameters, so we will create a
+small Python script ``bakepass.py`` that loads the model, does all the
+necessary setup and then serves as input for the render tool. Here is
+the entire script, the explanation follows:
+
+.. code-block:: Python
+
+    # Bake a texture map
+
+    Globals(
+        bake = True,
+        resolution = (512, 512),
+        pixelsamples = (2,2),
+        output = "ao_map.tif",
+        displaymode = "rgba"
+    )
+
+    # Load the model
+    load("model.obj")
+
+    # Obtain a reference to the model
+    model = worldObject("Model")
+
+    # Set the bake material
+    mat = RMMaterial(
+        surface = RMShader(
+	    "bake_ao.sl",
+             samples = 1000
+        )
+    )
+    model.setMaterial(mat)
+
+In the ``Globals`` section we first activate texture baking by setting
+the variable ``bake`` to ``True``. This has the same effect than specifying
+the option ``-B`` or ``--bake`` to the render tool. 
+All remaining options are usual rendering options that are not particular 
+to baking. The resolution of the map is set to 512x512. We are using a 
+power of two resolution as we want to be able to use the map in OpenGL and 
+we don't want OpenGL having to scale the image. The pixel samples setting
+is set to the standard 2x2. The output image will be called ``ao_map.tif``
+and will contain an alpha channel as the display mode is set to ``"rgba"``
+(which is the default for baking anyway, in contrast to normal rendering).
+
+There are two more options specific to baking that we did not use
+here.  The ``bakemodel`` parameter allows to specify the model that
+should be used for baking. It can either be the name of an object or
+the object itself. As we only have one single mesh in our scene,
+specifying this parameter is not necessary. The next parameter is
+``bakevarst`` which contains the name of the primitive variable that
+holds the texture coordinates for use with baking. The default value
+is ``"st"`` which is fine in our case. You might have to modify this
+variable if you want to bake a textured model and your shader already
+uses the standard ``st`` variable for looking up the texture. In this case,
+you may need a separate set of texture coordinates for baking.
+
+After the ``Globals`` block the model is loaded and a reference to the
+model is obtained (to do so, you have to know the name of your model.
+In our case, it's simply called "Model").
+
+Now the model receives a special RenderMan shader as material. This
+shader determines what you are actually baking. Any shader that is
+used for baking has to be made aware of this. Our shader
+``bake_ao.sl``, which is simply baking an ambient occlusion map, looks
+like this:
+
+.. code-block:: CPP
+
+    /*
+      Bake Ambient Occlusion
+    */
+
+    surface bake_ao(float samples=128; varying point Pref = point(0,0,0))
+    {
+      BAKE_BEGIN
+      normal Nshad = BAKE_NORMAL(N);
+
+      Ci = 1-occlusion(P, Nshad, samples);
+      Oi = 1;
+      BAKE_END
+    }
+
+Every shader used for baking must take a parameter called ``Pref`` which
+must be of type ``varying point``. This variable carries the actual 3D point
+on the surface of our model where shading should take place (remember, we are
+actually rendering a flat texture map, so our regular ``P`` is bascially 
+somewhere in uv space and that's why we have to carry the original 3D ``P``
+with us as variable ``Pref``). 
+
+The entire shader code should be enclosed by the ``BAKE_BEGIN`` and 
+``BAKE_END`` macros which will be provided by the render tool. At the
+beginning, the global variable ``P`` will be replaced by ``Pref``, so
+the shader can actually use ``P`` just as usual. There is another macro
+``BAKE_NORMAL()`` which should be used for obtaining the correct normal.
+**For this to work correctly, the model must supply normal information!** So
+you should make sure you saved the normals with your model and that the
+format you're using actually stores the normals. The remainder of the
+shader computes the color for the texture map using ``P`` and the obtained
+normal ``Nshad``.
+
+A shader that is prepared using the ``BAKE_`` macros can also be used
+for normal rendering. When the render tool is not in bake mode, the 
+``BAKE_BEGIN`` and ``BAKE_END`` macros will simply be substituted by
+an empty string and the BAKE_NORMAL() macro expands to the usual
+``faceforward(normalize(N),I);``. This also means, you can simply turn
+any shader into a "bake shader" by adding ``Pref`` as argument and
+enclosing everything by the above macros. If there are still parts
+in the shader that only work either during baking or during normal
+rendering you can use the ``BAKE_PASS`` variable to find out in which
+mode you currently are. This variable will only be defined during baking,
+so you can enclose your code by an ``#ifdef`` or ``#ifndef``:
+
+.. code-block:: CPP
+
+    #ifdef BAKE_PASS
+       // ...do something specific to baking...
+    #endif
+
+Now everything is set up to actually start the renderer. Here, we are
+using 3Delight to render the map, so we invoke the render tool like this::
+
+  render.py bakepass.py -r3delight
+
+After a few moments (for testing purposes you could decrease the number
+of samples for calculating the ambient occlusion) you see a map like this:
+
+.. image:: ao_map1.jpg
+
+
+Using the baked map
+-------------------
+
+Now that the baked texture map has been rendered, it can be used just
+like any other texture image. However, there's a slight problem with
+the generated TIF image and PIL (which is used by cgkit to read
+images). For some reason, PIL doesn't accept the rendered TIF images
+when they have an alpha channel. So before you can actually use the
+image you have to convert it to another format such as PNG (make sure
+that the alpha channel remains intact during conversion).
+
+Now we create another Python script ``final.py`` that loads the model
+and assigns a material that uses the converted map ``ao_map.png``:
+
+.. code-block:: Python
+
+    # Use the previously rendered texture map
+
+    Globals(
+        up = (0,1,0)
+    )
+
+    load("model.obj")
+    model = worldObject("Model")
+
+    mat = GLMaterial(
+        diffuse = (0,1,0),
+        texture = GLTexture(
+            "ao_map.png",
+            mode = GL_DECAL,
+            transform = mat4().scaling(vec3(1,-1,1))
+        )
+    )
+    model.setMaterial(mat)
+
+One thing to note is the transform parameter of the OpenGL
+texture. The image has to be mirrored so that the uv spaces between
+OpenGL and RenderMan actually match. Another thing is the ``up`` parameter
+in the ``Globals`` section. The model uses the Y axis as ``up`` axis, so
+we have to specify that as the default ``up`` axis in cgkit is the Z axis.
+In the previous bake pass we did not do that because usually, it doesn't
+matter what is ``up`` for baking.
+
+Now you can view the scene with the interactive OpenGL viewer tool::
+
+  viewer.py final.py
+
+The model now looks like this:
+
+.. image:: final1.jpg
+
+What you see here is only the ambient occlusion contribution without any
+additional shading. The white parts are not occluded at all, i.e. there
+is no direction in the hemisphere above the surface point that is blocked
+by other geometry, whereas the darker a point is, the more directions are
+blocked. This ambient occlusion term can now be used to replace the
+ambient part in a regular shader. Often, this ambient part is just set
+to some constant color which makes the result appear rather flat. By
+using the ambient occlusion percentage we are assuming that the ambient 
+light comes from far away and can be shadowed by nearby geometry. This is
+still a crude approximation, but at least the results look much nicer than
+with a constant ambient term. To activate shading again in our material,
+we should use the mode ``GL_MODULATE`` instead of ``GL_DECAL`` for the
+texture. Then a surface point will be shaded by OpenGL as usual and the
+result will be multiplied by the ambient occlusion term (this means,
+the diffuse and specular term are also influenced by the ambient occlusion
+instead of just the ambient color but that's just how far as we can get
+without any programmable shading. By using the OGRE viewer and writing
+your own shader you will get full control of how the ambient occlusion
+term is utilized).
+
+So far so good, but if this is a model that will later appear to be
+standing on some ground instead of floating in space it would have
+been better to bake the map with a floor in the scene. So let's
+just do that by adding the following lines to the bake pass (i.e.
+the file ``bakepass.py``): 
+
+.. code-block:: Python
+
+    Plane(
+        lx = 5,
+        ly = 5,
+        rot = mat3().fromEulerXYZ(radians(90),0,0)
+    )
+
+This plane serves as a floor but only during baking the map. Note that
+the plane has to be rotated by 90 degrees as we have the Y axis as
+the "up" direction.
+
+After baking the new map, the model looks like this:
+
+.. image:: final2.jpg
+
+Now even the ambient occlusion term alone already looks quite pleasing
+and makes the model appear somewhat realistic. That's because now we
+have a situation that corresponds to an illumination where light comes
+from the entire hemisphere above the ground (like on a cloudy day).
+
+Texture seams
+-------------
+
+So far we were using the baked texture map while it still had an intact
+alpha channel. As the alpha value distinguishes between what has actually
+been baked and what is just background in the texture, the background was
+never visible. Now if you want to cut down memory usage or your image file
+format does not support alpha channels you have to use the plain RGB image.
+But if we do that, the final model looks like this:
+
+.. image:: final_rgb.jpg
+
+In this particular case, the result looks as if some cartoon rendering
+algorithm has been applied here, but what you're actually seeing are
+the borders of the texture areas and the black color on the edges is
+the background color in the baked map. The background leaks through because
+of filtering and because the original texture coordinates won't necessarily
+lie on pixel boundaries.
+
+cgkit comes with a little tool called ``postpake.py`` that comes to
+the rescue here. This tool will post process a baked texture map by
+enlarging all seperate texture areas by one pixel so that the
+background isn't "seen" anymore during filtering.
+
+You invoke the tool as follows::
+
+  postbake.py ao_map.png ao_map2.png
+
+The input file ``ao_map.png`` must still have a valid alpha channel.
+The output file ``ao_map2.png`` will then be saved without alpha.
+Using the new map, we get:
+
+.. image:: final_rgb2.jpg
+
+The lines have vanished. However, there still can be artifacts when 
+you view the model at grazing angles and you have mip mapping activated
+(which is the default). In this case, the edges will again turn black.
+This is because the mip maps still contain the black background and with
+higher mip map levels we still have the same situation as before.
+To prevent that you either have to disable mip mapping or manually retouch
+the texture map by filling the *entire* background area with an appropriate
+color (i.e. the color from the nearest texture area).
+
+
+Another example
+---------------
+
+In the above example, we were using a simple shader that just outputs
+the ambient occlusion contribution. But of course, you can bake anything
+you can express as a RenderMan shader like procedural patterns and entire
+illumination results including shadows (which can be used for static
+scenery). 
+
+The following image is the result of baking some sort of marble shader
+on the Stanford Bunny that is standing on a parquet floor. The parquet
+shader is the one that was once distributed with the Blue Moon
+Rendering Tools by Larry Gritz. The shader was prepared for baking 
+using the ``BAKE_`` macros as described above.
+
+.. image:: bunny.jpg
+
+If you want to inspect the bunny yourself, here are the files:
+baked_bunny.zip_. You can just use the interactive viewer tool to view
+the scene::
+
+  viewer.py baked_bunny.py
+
+.. _baked_bunny.zip: baked_bunny.zip
+
+---------------------------------------------------------------------
+
+`Back to the tutorial index`_
+
+.. _Back to the tutorial index: ../index.html

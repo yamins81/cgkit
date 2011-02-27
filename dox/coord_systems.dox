@@ -1,0 +1,56 @@
+/** \page coord_systems Coordinate systems
+
+Each \link worldobject::WorldObject WorldObject \endlink has a
+position and orientation in space. This transformation can be described
+by a matrix that represents the object's local coordinate system.
+The local coordinate system L stored in each world object is given
+with respect to its parent coordinate system which usually is just
+the world coordinate system unless you have linked two objects. If you
+want the local coordinate system with respect to the world system
+you have to travel up the transformation hierarchy and concatenate
+all local systems. 
+
+The geometry of a world object is given with respect to the local 
+coordinate system L. So this is the matrix that's required during
+rendering. You get L by calling \c localTransform() on the
+respective world object.
+
+So far, if you would apply a rotation to an object it would rotate
+around the origin or if you would scale the object the center of
+the scale would lie in the origin. This is not always the desired
+behavior and that's why you can specify a pivot point, or rather,
+a pivot transformation or offset transformation P. This transformation
+is given with respect to L and is the identity by default. You can
+get and set this transformation using \c getOffsetTransform() and 
+\c setOffsetTransform().
+
+The concatenation of L and P is the transformation T. This is what the
+\c transform, \c pos, \c rot and \c scale slots of a world object
+carry. So if you modify the transform slot you also modify L whereas P
+always remains constant, unless you change it explicitly via \c
+setOffsetTransform().
+
+\image html "coordinate_systems2.png" "All the coordinate systems that are relevant to a world object (T = L*P)."
+
+Here's a simple code example where you can see the effects when modifying
+the different transformations:
+
+\code
+>>> s = Sphere()
+>>> s.pos = vec3(1,2,0)
+>>> s.pos
+<1, 2, 0>
+>>> s.setOffsetTransform(mat4().translation(vec3(2,4,7)))
+>>> s.pos
+<3, 6, 7>
+>>> s.pos = vec3(0,0,0)
+>>> s.pos
+<0, 0, 0>
+>>> s.localTransform()
+[1, 0, 0, -2]
+[0, 1, 0, -4]
+[0, 0, 1, -7]
+[0, 0, 0, 1]
+\endcode
+
+*/

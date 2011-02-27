@@ -1,0 +1,170 @@
+# Normalized RIB
+ErrorHandler "abort"
+ErrorHandler "print"
+ErrorHandler "ignore"
+Option "searchpath" "shader" [ "&:shaders" ]
+Option "render" "string bucketorder" [ "horizontal" ]
+Format 800.0 600.0 1.0
+Display "out.tif" "framebuffer" "rgba" "integer [ 2.0 ] origin" [ 10.0 10.0 ]
+CropWindow 0.25 0.75 0.1 0.9
+CropWindow 0.0 1.0 0.0 1.0
+PixelSamples 2.0 2.5
+ShadingRate 2.0
+Exposure 1.0 1.0
+FrameAspectRatio 1.3333
+ScreenWindow -1.3333 1.3333 -1.0 1.0
+Quantize "rgba" 255.0 0.0 255.0 0.5
+PixelFilter "box" 1.0 1.0
+PixelFilter "triangle" 1.0 1.0
+PixelFilter "catmull-rom" 1.0 1.0
+PixelFilter "sinc" 1.0 1.0
+PixelFilter "gaussian" 2.0 2.5
+Clipping 1.0 20.0
+Sides 2.0
+Declare "foo" "uniform float"
+Hider "hidden"
+ShadingInterpolation "constant"
+PixelVariance 0.1
+GeometricApproximation "flatness" 1.0
+DepthOfField 22.0 45.0 1000.0
+DepthOfField
+RelativeDetail 0.6
+ColorSamples [ 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 ] [ 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 ]
+Imager "foo" "Ka" [ 1.0 ]
+Identity
+Projection "perspective" "fov" [ 40.0 ]
+Translate 0.0 0.0 8.0
+Translate 0.0 0.0 2.0
+Shutter 0.0 1.0
+ClippingPlane 5.0 0.0 0.0 1.0 0.0 0.0
+FrameBegin 1.0
+WorldBegin
+CoordinateSystem "myworld"
+Attribute "identifier" "name" [ "object" ]
+Color [ 1.0 1.0 1.0 ]
+Opacity [ 1.0 1.0 1.0 ]
+LightSource "distantlight" 1.0 "from" [ 0.0 0.0 -1.0 ] "to" [ 0.0 0.0 0.0 ]
+Illuminate 1.0 1.0
+Surface "plastic" "Kd" [ 1.0 ]
+AttributeBegin
+Translate 0.0 3.0 0.0
+TransformBegin
+Translate -3.0 0.0 0.0
+Sphere 0.5 -0.5 0.5 360.0 "varying color Cs" [ 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 0.0 ]
+Translate 1.0 0.0 0.0
+Cone 1.0 0.5 360.0 "varying color Cs" [ 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 0.0 ]
+Translate 1.0 0.0 0.0
+Cylinder 0.5 -0.5 0.5 360.0 "varying color Cs" [ 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 0.0 ]
+Translate 1.0 0.0 0.0
+Hyperboloid 0.0 0.3 0.0 0.5 0.0 0.0 360.0 "varying color Cs" [ 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 0.0 ]
+Translate 1.0 0.0 0.0
+Paraboloid 0.5 0.2 0.7 360.0 "varying color Cs" [ 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 0.0 ]
+Translate 1.0 0.0 0.0
+Disk 0.0 0.5 360.0 "varying color Cs" [ 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 0.0 ]
+Translate 1.0 0.0 0.0
+Torus 0.45 0.05 0.0 360.0 360.0 "varying color Cs" [ 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 0.0 ]
+TransformEnd
+AttributeEnd
+AttributeBegin
+Translate 0.0 1.5 0.0
+Translate -2.0 0.0 0.0
+Polygon "Cs" [ 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 0.0 ] "P" [ -0.5 0.5 0.0 0.5 0.5 0.0 0.5 -0.5 0.0 -0.5 -0.5 0.0 ]
+Translate 1.33 0.0 0.0
+GeneralPolygon [ 4.0 ] "Cs" [ 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 0.0 ] "P" [ -0.5 0.5 0.0 0.5 0.5 0.0 0.5 -0.5 0.0 -0.5 -0.5 0.0 ]
+Translate 1.33 0.0 0.0
+PointsPolygons [ 4.0 ] [ 0.0 1.0 2.0 3.0 ] "Cs" [ 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 0.0 ] "P" [ -0.5 0.5 0.0 0.5 0.5 0.0 0.5 -0.5 0.0 -0.5 -0.5 0.0 ]
+Translate 1.33 0.0 0.0
+PointsGeneralPolygons [ 1.0 ] [ 4.0 ] [ 0.0 1.0 2.0 3.0 ] "Cs" [ 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 0.0 ] "P" [ -0.5 0.5 0.0 0.5 0.5 0.0 0.5 -0.5 0.0 -0.5 -0.5 0.0 ]
+AttributeEnd
+AttributeBegin
+Basis "b-spline" 1.0 "catmull-rom" 1.0
+Basis "hermite" 2.0 "power" 4.0
+Basis [ 2.0 0.0 0.0 0.0 0.0 2.0 0.0 0.0 0.0 0.0 2.0 0.0 0.0 0.0 0.0 2.0 ] 3.0 [ 1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0 10.0 11.0 12.0 13.0 14.0 15.0 16.0 ] 3.0
+Basis "bezier" 3.0 "bezier" 3.0
+Translate -2.0 0.0 0.0
+Patch "bilinear" "Cs" [ 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 0.0 ] "P" [ -0.5 0.5 0.0 0.5 0.5 0.0 -0.5 -0.5 0.0 0.5 -0.5 0.0 ]
+Translate 1.33 0.0 0.0
+PatchMesh "bilinear" 2.0 "nonperiodic" 2.0 "nonperiodic" "Cs" [ 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 0.0 ] "P" [ -0.5 0.5 0.0 0.5 0.5 0.0 -0.5 -0.5 0.0 0.5 -0.5 0.0 ]
+Translate 1.33 0.0 0.0
+NuPatch 2.0 2.0 [ 0.0 0.0 1.0 1.0 ] 0.0 1.0 2.0 2.0 [ 0.0 0.0 1.0 1.0 ] 0.0 1.0 "Cs" [ 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 0.0 ] "P" [ -0.5 0.5 0.0 0.5 0.5 0.0 -0.5 -0.5 0.0 0.5 -0.5 0.0 ]
+Translate 1.33 0.0 0.0
+AttributeBegin
+TrimCurve [ 1.0 ] [ 2.0 ] [ 0.0 0.0 1.0 2.0 3.0 4.0 4.0 ] [ 0.0 ] [ 4.0 ] [ 5.0 ] [ 0.3 0.7 0.7 0.3 0.3 ] [ 0.7 0.7 0.3 0.3 0.7 ] [ 1.0 1.0 1.0 1.0 1.0 ]
+NuPatch 2.0 2.0 [ 0.0 0.0 1.0 1.0 ] 0.0 1.0 2.0 2.0 [ 0.0 0.0 1.0 1.0 ] 0.0 1.0 "Cs" [ 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 0.0 ] "P" [ -0.5 0.5 0.0 0.5 0.5 0.0 -0.5 -0.5 0.0 0.5 -0.5 0.0 ]
+AttributeEnd
+Translate 1.33 0.0 0.0
+SubdivisionMesh "catmull-clark" [ 3.0 3.0 3.0 3.0 ] [ 0.0 1.0 3.0 1.0 2.0 3.0 2.0 0.0 3.0 0.0 2.0 1.0 ] "Cs" [ 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 0.0 ] "P" [ -1.0 -1.0 0.0 1.0 -1.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 ]
+AttributeEnd
+AttributeBegin
+Translate 0.0 -1.5 0.0
+Translate -2.0 0.0 0.0
+Points "Cs" [ 1.0 1.0 0.0 ] "P" [ 0.0 0.0 0.0 ] "constantwidth" [ 0.5 ]
+Translate 1.33 0.0 0.0
+Curves "linear" [ 2.0 ] "nonperiodic" "Cs" [ 1.0 0.0 0.0 0.0 0.0 1.0 ] "P" [ -0.5 -0.5 0.0 0.5 0.5 0.0 ] "constantwidth" [ 0.1 ]
+Translate 1.33 0.0 0.0
+TransformBegin
+Scale 0.5 0.5 0.5
+Blobby 2.0 [ 1001.0 0.0 1001.0 16.0 0.0 2.0 0.0 1.0 ] [ 1.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 1.0 0.0 0.7 0.7 0.0 1.0 1.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 1.0 ] [ ] "Cs" [ 1.0 0.0 0.0 0.0 0.0 1.0 ]
+TransformEnd
+Translate 1.33 0.0 0.0
+TransformBegin
+Translate 0.0 -0.2 0.0
+Rotate 90.0 -1.0 0.0 0.0
+Scale 0.2 0.2 0.2
+Geometry "teapot" "uniform color Cs" [ 0.0 0.5 1.0 ]
+TransformEnd
+Translate 1.33 0.0 0.0
+Sphere 0.5 -0.5 0.5 360.0 "uniform color Cs" [ 0.0 0.0 1.0 ] "constant string data" [ "spam" ] "constant string info" [ "This sphere was generated by a custom procedural" ]
+AttributeEnd
+ReadArchive "include.rib"
+TransformBegin
+Translate 0.0 -3.0 0.0
+AttributeBegin
+MotionBegin [ 0.0 1.0 ]
+Translate -0.1 0.0 0.0
+Translate 0.1 0.0 0.0
+MotionEnd
+MotionBegin [ 0.0 1.0 ]
+Rotate 0.0 1.0 0.0 0.0
+Rotate 90.0 1.0 0.0 0.0
+MotionEnd
+Sphere 0.5 -0.5 0.5 360.0
+AttributeEnd
+ObjectBegin 1.0
+Sphere 0.5 -0.5 0.5 360.0
+ObjectEnd
+Translate 1.33 0.0 0.0
+Color [ 0.0 0.5 0.5 ]
+ObjectInstance 1.0
+TransformEnd
+Matte 1.0
+Orientation "lh"
+ReverseOrientation
+Perspective 45.0
+Skew 45.0 0.0 1.0 0.0 1.0 0.0 0.0
+Skew 45.0 0.0 1.0 0.0 1.0 0.0 0.0
+Transform [ 1.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 1.0 ]
+ConcatTransform [ 1.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 1.0 ]
+TextureCoordinates 0.0 0.0 1.0 0.0 1.0 1.0 0.0 1.0
+Displacement "foo" "Ka" [ 1.0 ] "constant string mapname" [ "foo.map" ]
+Atmosphere "foo" "Ks" [ 0.5 ] "Ka" [ 1.0 ]
+Interior "foo" "Ka" [ 1.0 ] "Ks" [ 0.6 ] "constant string mapname" [ "foo.map" ]
+Exterior "foo" "Ka" [ 1.0 ]
+AreaLightSource "foo" 2.0 "Ka" [ 1.0 ]
+LightSource "distantlight" "mylight" "Ka" [ 0.7 ]
+Illuminate "mylight" 0.0
+Bound [ 0.0 1.0 0.0 1.0 0.0 1.0 ]
+CoordSysTransform "myworld"
+Detail [ 0.0 1.0 0.0 1.0 0.0 1.0 ]
+DetailRange 0.0 0.0 10.0 20.0
+SolidBegin "primitive"
+SolidEnd
+Procedural "DelayedReadArchive" [ "mymodel.rib" ] [ -1.0 1.0 -1.0 1.0 -1.0 1.0 ]
+Procedural "RunProgram" [ "python teapot.py" "foo" ] [ -1.0 1.0 -1.0 1.0 -1.0 1.0 ]
+Procedural "DynamicLoad" [ "teaspot.so" "bar" ] [ -1.0 1.0 -1.0 1.0 -1.0 1.0 ]
+WorldEnd
+MakeTexture "input.tif" "output.tex" "periodic" "clamp" "gaussian" 2.0 2.0
+MakeShadow "input.tif" "output.tex"
+MakeLatLongEnvironment "input.tif" "output.tex" "gaussian" 2.0 2.0
+MakeCubeFaceEnvironment "px.tif" "nx.tif" "py.tif" "ny.tif" "pz.tif" "nz.tif" "output.tex" 95.0 "gaussian" 2.0 2.0
+FrameEnd

@@ -1,0 +1,666 @@
+Changelog
+=========
+
+Changes from cgkit-2.0.0alpha8 to cgkit-2.0.0alpha9:
+
+New features:
+
+- New module sloargs to parse compiled RenderMan shaders.
+- New module pointcloud to read/write RenderMan point cloud files.
+- New module sequence that contains functionality to deal with numbered
+  (file) sequences. There are also new utilities seqls.py, seqmv.py, seqcp.py
+  and seqrm.py (the equivalent of ls, mv, cp, rm but they work on file
+  sequences).
+
+Bug fixes/enhancements:
+
+- objimport: Now handles map_bump and bump and map_refl correctly (dyamins)
+- suportlib/src/trimeshgeom.cpp:  syntax error preventing installation corrected (dyamins)
+- ribexport: A custom rib string can now also be added to light sources
+  (for the image pass).
+- setup script: In addition to the general config file config.cfg the setup
+  script also reads a version-specific config_pyXY.cfg script.
+- mat4: Wrapped the mat4 constructor that takes 16 floats as input. Because
+  this one was missing, calling copy.copy() on a mat4 that was returned by
+  the library (instead of being created by the user) did not work.
+- RMShader: Passing parameter values for array parameters in the constructor
+  didn't work.
+- ri/cri: Added the following calls:
+      RiArchiveBegin(), RiArchiveEnd(), RiCamera(), RiDisplayChannel(),
+      RiIfBegin(), RiElseIf(), RiElse(), RiIfEnd(),
+      RiMakeBrickMap(), RiResource(), RiResourceBegin(), RiResourceEnd(),
+      RiScopedCoordinateSystem(), RiShader(), RiSystem().
+- cri: numpy integer arrays were not properly supported on 64-bit systems
+- mayaascii: Bugfix #2119263: The setAttr command wasn't recognizing the 
+  channelBox option (+ some other bugfixes). 
+- slparams: The module can now also retrieve information from compiled shaders
+  (from various renderers).
+- slparams: The returned shader info/shader parameters are no tuples anymore
+  but special objects whose attributes hold the return values. For backwards,
+  compatibility, those objects can still be used like tuples.
+- ObjMaterial: Texture maps were rendered with a filter width of 0.01 which
+  doesn't make much sense. For now, I set it to 1.0, but this should probably
+  be customizable.
+- mat3: The toEuler*() methods were broken. Depending on the angles, they
+  could return invalid values.
+- sl/noise: When only cgkit light was installed, the sl module couldn't be
+  imported because it imports noise which has no pure Python equivalent yet.
+  There is a dummy noise module now in the light version which allows importing
+  the module. An error is only triggered when one of the functions gets called.
+- rply: The sources can now also be compiled using a C++ compiler. Thanks
+  to Chris Foster for the patch!
+- ribexport: The Frame block now uses the frame number from the timer object
+  (instead of always using 0).
+- ribexport: Added RenderMan support for the torus geometry.
+- cri: Improved library detection (uses renderer-specific environment variables
+  to locate the shared RenderMan library)
+- ri/cri: Passing unicode strings in a parameter list has caused an exception.
+
+----------------------------------------------------------------------
+Changes from cgkit-2.0.0alpha7 to cgkit-2.0.0alpha8:
+
+New features:
+
+- New module "cri" that accesses a RenderMan API directly by loading
+  a shared library that must implement the API (this shared library has
+  to be provided by the renderer you are using).
+- New module mayabinary to parse Maya binary scene files
+
+Bug fixes/enhancements:
+
+- ri: RiPixelFilter() now also accepts a callable as filter function but
+  will issue a warning and ignore the call.
+- ri: RiProcedural() now also accepts a Python function as subdiv function.
+  This will simply be called with a detail value of RI_INFINITY.
+- ri: Parameter lists can now also contain numpy (or other) arrays (this
+  doesn't increase performance though (whereas it does when the cri module
+  is used)).
+- ri: Added the RenderMan type symbols to the module.
+- ri: Bugfix: RiColorSamples() was setting an invalid number of samples
+- ri: Bugfix: The RiTrimCurve() function was broken (due to a typo in the spec).
+- ri: Parameter lists that are given using positional arguments will now have
+  the same order in the RIB as they have in the source code.
+- Bugfix 1677388: The debug messages that print pointer now use the format
+  string %#lx which should also work on 64Bit systems (thanks to Paul Egan)
+- GLRenderInstance: Bugfix: Picking in vsplit stereo mode can now 
+  correctly be done on the left image.
+- asfamcimport: Updates because the mat3.fromEuler*() methods are now static.
+- euleradapter: Updates because the mat3.fromEuler*() methods are now static.
+- BoundingBox: New method center() that returns the center of the box.
+- BoundingBox: getBounds() now accepts an optional direction that controls
+  which corners will get returned.
+- BoundingBox: New method clamp() that clamps a point so that it lies
+  within the bounding box.
+- vec3: The C++ implementation of ortho() is now more stable (now it matches
+  the version in the pure Python implementation)
+- vec3/vec4: Finished and exposed the min(), max(), minIndex(), maxIndex(),
+  minAbs(), maxAbs(), minAbsIndex() and maxAbsIndex() methods.
+- quat: New method rotateVec() to rotate a vector about a unit quaternion.
+- mat3: New static method fromToRotation() to create a rotation matrix that 
+  rotates one vector into another.
+- mat3: Bugfix: There was a typo in toEulerZYX() which has led to incorrect
+  results.
+- mat3: identity(), scaling(), rotation() and the fromEuler*() methods are 
+  now static methods, so you don't have to create a temporary instance 
+  anymore just to invoke those methods. Note: fromEuler*() now just returns
+  a rotation matrix but does not initialize self anymore!
+- mat4: identity(), scaling(), rotation(), frustum(), perspective(), 
+  orthographic() and lookAt() are now static methods, so you don't have
+  to create a temporary instance anymore just to invoke those methods.
+  (in cgkit light, mat4 was modifying self. This has been changed so that
+  it matches the regular version)
+- mat3/mat4/vec3 (light version): The methods taking a vec3 now also
+  accept any other 3-sequence of floats (as the regular version is already
+  doing).
+- quat (light version): Added the "shortest" argument (as done in the
+  previous release with the regular version).
+- Bugfix: The render tool wasn't properly processing facevarying/facevertex
+  variables on meshes (the extractUniform() function didn't take these
+  storage classes into account).
+- mayaascii: When several MEL commands were in the same line it could happen
+  that they were not properly distinguished. Added some more doc-strings and
+  issue a warning when an unknown MEL command is encountered. 
+  When no type information was passed to Attribute.getValue() it falls
+  back to string conversion when the initially guessed type this fail.
+- mayaascii: The options of the file command have been completed.
+- mayaascii: The lockNode command is supported.
+- mayaascii: Reading the file can be aborted.
+- mayaascii: The importer was broken because of the previous modification
+  of the simplecpp module. This is fixed now.
+- render.py: The Globals section can now contain a parameter output_framebuffer
+  that controls whether a framebuffer display is opened or not.
+- simplecpp: Reading a file can be aborted now.
+- simplecpp: Don't use keyword arguments to pass the compare function to
+  sort(). This wasn't supported before Python 2.4.
+- ribexport: All RMLightSource instances were using the same shader as the
+  first RM light source that was encountered during export.
+- cmds.load(): When the importer raises an error the original current 
+  directory is restored.
+
+Thanks to Martin Blais for pointing out a lot of the above issues!
+
+----------------------------------------------------------------------
+Changes from cgkit-2.0.0alpha6 to cgkit-2.0.0alpha7:
+
+New features:
+
+- The license has changed. Instead of the LGPL cgkit now uses the
+  MPL/GPL/LGPL tri-license (this applies to the Python package "cgkit").
+  The Maya package und plugin uses the MPL.
+- New class MayaSpotLight that approximates spot lights as they appear
+  in Maya. The object is created by the ma importer.
+
+Bug fixes/enhancements:
+
+- simplecpp: The built-in preprocessor (which is used for parsing RenderMan
+  shaders) is now a bit more capable than before (but it's still not a full 
+  replacement for a true preprocessor).
+  It now handles line-continuation, preprocessor directives and macros
+  that do not take arguments.
+  The slparams.slparams() function and the RMShader constructor now have
+  new arguments 'includedirs' and 'defines' which are passed to the
+  preprocessor (either the built-in one or the external one).
+- setup.py: The setup script doesn't check for the Boost.Python header
+  anymore because the test didn't take the built-in paths (such as
+  /usr/include) into account.
+- quat: By default, the slerp() function now always interpolates along
+  the shortest path. The function has a new optional argument "shortest"
+  (default: True) that controls this behavior. If you set shortest to
+  False you will get the previous behavior where it depends on the
+  quaternions if you get the shortest or longest path (you can switch
+  between those paths by negating one of the quaternions).
+  This fixes "bug" 1488467.
+- Wherever a wrapped C++ function was expecting a vec3/vec4 as input it 
+  is now also possible to pass a sequence with 3/4 floats.
+- RMShader: Array parameters can now be processed as well.
+- A Globals section can now appear more than once without that it resets
+  some of the scene values (like the up vector or handedness).
+- The built-in materials (GLMaterial, Material3DS, OBJMaterial) can now
+  also be used for baking.
+- Bugfix: When baking maps, the transformation of the object was ignored.
+  This led to incorrect surface shading when the transformation was 
+  anything else than the identity.
+- WorldObjects now support comparison (i.e. two WorldObject wrappers that
+  reference the same C++ object will now appear as identical)
+- The setup script was checking for Boost.Python headers even when the
+  'light' version was installed. This is fixed.
+- Using the GLMaterial class for RenderMan renders was broken (because
+  it was still assumed a GLMaterial can only have one texture)
+- RMShader: The declare() method did not work when the name argument
+  didn't contain an inline declaration and the parameter name started
+  with a SL type (such as "colorscale").
+
+----------------------------------------------------------------------
+Changes from cgkit-2.0.0alpha5 to cgkit-2.0.0alpha6:
+
+New features:
+
+- New module "glslangparams" to extract uniform, attribute and varying
+  variables from OpenGL 2 shaders.
+- New module "glslangtokenize" to create tokens from an OpenGL 2 shader file
+- New module "lwob" to read Lightwave Object files.
+- New *.lwo import plugin using the lwob module
+- GLMaterial: The material can now store more than just one texture.
+- GLMaterial: New attribute vertex_shader and fragment_shader that take
+  a list of GLShader objects (this is in preparation for OpenGL 2.0 shader
+  support)
+- New module hammersley that contains generators for the Hammersley and Halton
+  point sets
+- New module stitch.py that can stitch together images that were rendered
+  with RiCropWindow(). The file can also be used as a command line utility.
+- render.py: An image can now be rendered in tiles by specifying the 
+  global 'tiles' parameter. The output image is automatically stitched
+  back together. Note: Currently, this feature is only meant to be used
+  with renders that only contain one frame block which outputs an image
+  (i.e. the tiling will not be applied on shadow maps and any map generation
+  pass will be done again for each tile).
+- RIBExport: The Globals section can have a 'rib' parameter containing raw
+  RIB requests. This string is added to the output RIB stream before the 
+  frames.
+- RIBExport: The output parameter can also contain a list of output specifiers
+  (i.e. containing the parameters for RiDisplay() calls).
+- slparams: The slparams() function can now also take a file-like object
+  as input instead of a shader source file. If the cpp argument is a callable
+  it must accept a stream as second parameter which has to be used for
+  error messages.
+- RMShader: New method declare() to declare shader parameters if the shader
+  source file is not available. New constructor argument 'params' to pass
+  a dictionary with parameters. Additional token/value pairs are now only
+  allowed if they're passed as keyword arguments. Positional arguments are
+  no longer supported as this will break too easily if new constructor
+  arguments are introduced.
+- The cmds.group() function now returns the newly created Group object.
+- New function cmds.fitCone() that generates a minimal cone that entirely
+  contains the bounding box of an object (for use with spot lights).
+
+Bug fixes/enhancements:
+
+- objmtl: Added support for lines (l) and points (p).
+- sltokenize: Variables whose name started with a SL type were not treated
+  correctly.
+- GLRenderer: Added a switch to enable backface culling
+- Expressions: Expressions can now also take arbitrary Python objects as
+  variables.
+- RIBExport: The pixel filter can now be set via a global option.
+- ri.py: Speedup when processing parameter lists that contain vec3 objects.
+- ri.py: Floats are now written using str() instead of repr(), this means
+  they are often shorter (e.g. 0.1 instead of 0.10000000000000001). 
+  Bugfix: Long integer values did generate invalid RIB code (as the trailing
+  'L' was present).  
+  Bugfix: Since Python 2.3 boolean values are printed as True and
+  False instead of 1 and 0, so RiMatte() was generating invalid RIB code.  
+- setup.py: The boost header check is now performed by searching in the
+  paths specified in INC_DIRS instead of a path based on BOOST_BASE.
+  New config variable BOOST_LIB that carries the name of the Boost.Python
+  library to link with.
+- events.py: Fixed a typo that led to a deprecation warning at runtime.
+- render tool: Fixed the invalid output file names when an animation is 
+  rendered.
+- MotionPath: Check and handle an exception when the first derivative is zero.
+- render.py: The image resolution can now also be specified on the command
+  line (bug 1429607).
+- viewer.py: Outputs OpenGL information in verbose mode
+
+----------------------------------------------------------------------
+Changes from cgkit-2.0.0alpha4 to cgkit-2.0.0alpha5:
+
+New features:
+
+- New class MotionPath that allows animating an object along a path
+- New classes: BezierCurveGeom/BezierCurve
+- ODEDynamics: If the parameter collision_events is set to True the component
+  will generate events whenever a collision occurs.
+- ODEDynamics: The ODEBodyManipulator can now also be used to set the 
+  bodie's position/orientation/velocities directly. It can also be used
+  to change the initial position/orientation/velocities of the body.
+- Introduced a 'light' version of cgkit that does not have any external
+  dependencies (you don't even need a C/C++ compiler to install the light
+  version). Basically, you get the functionality from cgkit1 and a few
+  modules from cgkit2. The light version is installed by setting the
+  INSTALL_CGKIT_LIGHT variable to True in your config.cfg file.
+- Package structure: Importing from cgkit directly (e.g. "from cgkit import *")
+  does NOT import all the symbols anymore. Instead you have to do that via
+  "from cgkit.all import *" (which also imports the contents of the cmds 
+  module) or import from the appropriate module directly.
+  As importing "cgkit" is now very light weight, you can import selected
+  modules very fast (e.g. "from cgkit.ri import *") and this doesn't trigger
+  importing all the other stuff which might not necessary if only one module
+  is required. This also removes dependencies (from stuff like PyOpenGL, PIL,
+  PyProtocols, etc.) if only some basic modules are imported.
+  Furthermore the dependencies on PyOpenGL and PIL have been delayed so that
+  an exception is only raised when these packages are actually *used* and
+  not when they are only imported.
+- WorldObject: The visible flag now only applies to the local geometry and
+  is not inherited by the children (which has always been the case with the
+  Ogre viewer but not the standard viewer).
+- LookAt/TargetCamera: Added roll and up parameters.
+- slparams: The slparams function now uses an internal preprocessor by default
+  instead of invoking 'cpp'. This eliminates the dependency on cpp (which
+  isn't available by default on Windows, for example).
+- RMShader: The preprocessor that should be used during parameter extraction
+  can be passed as argument.
+- Material3DS: An approximation of the material can now also be seen in
+  the OpenGL viewer.
+- RenderMan export: The IMaterial protocol now defines functions for obtaining
+  the transformation that should be applied to a shader. The RMShader class
+  now has a parameter to set this transformation. This means the shader can
+  be transformed relative to the object.
+- New export script for 3ds max that currently exports spline shapes and
+  cameras.
+
+Bug fixes/enhancements:
+
+- objmtl: Also allow group specifications without a name. In this case,
+  the name 'default' will be used.
+- GeomObject: The size of the primitive variables does not depend on the
+  methods uniformCount(), varyingCount(), etc. but only on the constraints.
+  So these ...Count() methods are only for informational purposes now and
+  don't have to be implemented anymore by derived classes. Instead derived
+  classes must implement the slotSizeConstraint() method.
+- cgtypes: All the method arguments can now also be passed as keyword
+  arguments (this fixes bug #1262258).
+- ArraySlots: The size of ArraySlots can now be constrained (which is used
+  for primitive variables). Disconnecting array slots was not properly done,
+  dangling references were possible. 
+- ArraySlot: Bugfix in the DataContainer object (the copy constructor
+  wasn't initializing the multiplicity attribute which could lead to
+  obscure and sometimes irreproducible crashes).
+- ArraySlot: New method isResizable() to check if a resize() operation would
+  succeed or not.
+- ArraySlot/Slot: connect(), disconnect(), addDependent(), removeDependent()
+  and notifyDependents() was wrapped in the wrong place (in the Slots classes
+  instead of the base ISlot) which left them undefined for ArraySlots.
+- TriMeshGeom/PolyhedronGeom: The array slots of primitive variables are
+  now size constrained so that modifying the size of the faces/verts will
+  update the size of the primitive variables accordingly.
+- LightSource: The C++ base class now has a bool slot "cast_shadow" that
+  enabled/disables shadows (if supported by the actual light source 
+  implementation and the renderer).
+- WorldObject: The Python wrappers for the worldtransform and totalmass slots
+  were missing which resulted in an exception when connecting these slots
+  to other slots.
+- FlockOfBirds: Initialize the orientation (matrix and quat) with the
+  identity instead of 0.
+- Material: The applyGL() and usesBlending() methods from the GLMaterial class
+  are now declared in the base Material class, so any material might be used
+  with the OpenGL viewer. The methods can be implemented in Python (if derived
+  from the Material base class, not the GLMaterial class).
+- Maya ASF/AMC exporter: Fixes to be able to run in Maya 5.
+- Ogre-Viewer: Take the fov of the camera into account / set background color
+  from the global background variable.
+
+----------------------------------------------------------------------
+Changes from cgkit-2.0.0alpha3 to cgkit-2.0.0alpha4:
+
+New features:
+
+- The render tool can now also be used to bake texture maps
+- TargetCamera/FreeCamera: New parameters nearplane, farplane, auto_nearfar
+  to control the near and far clipping planes. This can be used to get rid
+  of the OpenGL rendering artifacts when the camera is within the scene bounds.
+  The minimum near plane distance is now a fixed value of 0.1 (previously it
+  was based on the scene extents).
+- cmds: New function drawText() to draw a text string at a 3D position
+  (viewer only).
+- New import/export plugins for PLY files (using the RPly library by 
+  Diego Nehab, http://www.cs.princeton.edu/~diego/professional/rply/)
+- New (partial) import plugin for Maya .ma files
+- New module mayaascii to parse .ma files.
+- New module simplecpp that contains a simple C preprocessor class (which
+  is used in the mayaascii module)
+- New class RMLightSource that wraps a RenderMan light source shader
+- Slot: New method disconnect() to break connections (equivalent to
+  target.setController(None))
+- GLRenderer: The separation of the specular color can be enabled/disabled
+  (so far only globally).
+- Utilities: New MEL script for Maya to export a skeleton (and its motion)
+  as ASF/AMC files (see utilities/maya). The script was written by Bert Völker.
+
+Bug fixes/enhancements:
+
+- Compile fixes under OSX (thanks to Tobias Sauerwein!)
+- 3DS import: In some cases it could happen that an object was illegally
+  created beneath the world root instead of its correct parent
+- noise: The missing vector valued noise functions are now available
+- ODEDynamics: Removed the numarray dependency (for now) as it wasn't used
+  anyway
+- cgtypes: Added pickle & copy support (which is one more step to increase
+  the compatibility between the cgtypes in cgkit1 & cgkit2)
+- cmds.drawClear() was broken because of a typo
+- TriMeshGeom: Drawing meshes using OpenGL now supports all valid type
+  combinations of "N", "st" and "Cs" (constant, uniform, varying, facevarying,
+  user + facevarying faces and user + uniform faces)
+- StrArraySlot class added
+- GeomObject: Bugfix: Primitive variables of type string were created without
+  corresponding slot.
+- Slots (C++): Slot values aren't initialized with 0 anymore so that the
+  templates can also be used for non-numeric values (such as strings).
+- PolyhedronGeom: If there is no normal information, the normals are now 
+  automatically computed for rendering.
+- PolyhedronGeom: Triangulating polys that have uniform variables could
+  have led to an exception being thrown.
+- PolyhedronGeom: Normals, texture coords and colors stored as USER variables 
+  with an additional faces variable of type FACEVARYING are now correctly 
+  displayed in the viewer (previously this combination was ignored).
+- Slot: Calling slot.connect(None) resulted in an unhandled C++ exception.
+  This is fixed so that the call has no effect.
+- Slot: Procedural slots allowed setting values which led to an inconsistent
+  graph
+- lib3ds wrapper: Check for the available lib3ds version so that v1.2.0
+  can also be used again (however, the "self illumination percentage" 
+  material attribute won't be available then).
+- The C++ supportlib will be compiled with -fPIC under Linux (thanks
+  to Chris Bainbridge) which fixes import errors on some systems.
+- RIBExport: Only use motion blocks when there actually is a motion
+- Rigid body dynamics: Disabled rigid bodies (dynamics=False) that were 
+  attached to enabled rigid bodies did still influence the simulation 
+  (cog, inertiatensor, collision). This is fixed now.
+- Rigid bodies: The dynamics attribute is now a slot instead of just a
+  Python attribute (now it can be accessed in C++).
+
+----------------------------------------------------------------------
+Changes from cgkit-2.0.0alpha2 to cgkit-2.0.0alpha3:
+
+New features:
+
+- New export plugin for OBJ files.
+- New export plugin for OFF files.
+- Improved OFF import. Normals, colors and texture coordinates are also 
+  imported if present. 
+- New import plugin for OBJ files.
+- New module "objmtl" that contains an OBJ and MTL reader class.
+- OBJMaterial: New material to store the parameters of a material definition
+  as it appears in OBJ/MTL files.
+- Tool: New option -t/--set-time to determine how to reach the starting time
+- GnuPlotter: New options xrange, starttime, endtime.
+- RIBExport: The display mode can be set via the global option "displaymode"
+  (default is "rgb").
+- New storage types FACEVARYING and FACEVERTEX for primitive variables
+  (same semantics as in RenderMan)
+- New module "application" that contains the getApp() function to obtain
+  a reference to the surrounding application.
+- EventManager: When connecting to an event you can now specify a priority
+  which determines the calling order.
+- EventManager: When an event handler returns True, the notifcation chain
+  is interrupted (i.e. the event is consumed).
+- The GL light sources now also have an "ambient" color attribute
+- Instead of a single material you can now also pass a sequence of materials
+  into the constructor of the world objects
+- New polyhedron geometry
+- Python import: The directory where the input file is located is added
+  to the module import path so that local modules can be imported as usual.
+- ODEDynamics: The add() method now has optional arguments categorybits and
+  collidebits to control collision detection
+- ODEBodyManipulator: Forces/Torques can be relative and forces can be 
+  applied at a particular position. New attributes: body, odebody
+- TargetCamera/FreeCamera: New method eyeRay() to obtain the ray from the
+  eye position through an image point.
+- Joint: Local coordinate frame can now be arbitrarily oriented. Order of
+  rotation can be specified.
+- New import plugin for ASF/AMC files (using the new asfamc module)
+- New import plugin for BVH files (using the new bvh module)
+- New module "bvh" that contains a Biovision Hierarchical (BVH) reader class
+- New module "asfamc" that contains base classes for reading 
+  Acclaim Skeleton File Definition (ASF) files and 
+  Acclaim Motion Capture Data (AMC) files.
+- OGRE-Viewer: New functionality for swapping scene graphs
+
+Bug fixes/enhancements:
+
+- Scene: walkWorld() can also be used to traverse a subtree of the scene
+- EventManager: There was a bug in the disconnect() method that always
+  resulted in an exception.
+- Group: The children can also be specified by name
+- viewer: The order of operation within a frame has changed. The scene is
+  now displayed at the beginning of the frame (so that processing events
+  and the STEP_FRAME event are together).
+- GnuPlotter: There seems to be a bug in Gnuplot.py that produces an exception
+  when only one data item is being plotted. The GnuPlotter component now
+  contains a workaround.
+- Expression: When a user variable was called 'v' the expression didn't work.
+- IArraySlots: New method copyValues() to copy the values of an ArraySlot 
+  without having to know its exact type.
+- ArraySlots: Array access wasn't range checked which could lead to a crash.
+  This is fixed now + some additional type checking.
+- ArraySlots: The getValues()/setValues() methods have been removed on the
+  Python side. Instead getValue()/setValue() can be used (on the C++ side
+  the distinction is still there).
+- CamControl: Camera control doesn't raise an exception anymore when used
+  with a FreeCamera. However, the control might not be usable in all 
+  situations (especially rotations). Needs more attention.
+- quat: quat.fromAngleAxis() won't generate an exception anymore if the
+  axis is zero. This case is now treated as if angle was zero and returns
+  (1,0,0,0). The axis also doesn't have to be normalized anymore.
+  (support request #1144713)
+- supportlib/wrapper: Compile fixes for gcc 3.4 (under FreeBSD). Thanks
+  to Clive Crous.
+  (bug report #1143768)
+- mat3: Changed the meaning of the fromEuler???() methods. The order now
+  refers to the *local* axes instead of the global axes as before. This
+  means that if you want to get the previous behavior you have to invert 
+  the order. NOTE: This also affects other classes such as the Joint class
+  or the EulerAdapter.
+- OGRE-Viewer: Various bug fixes.
+
+----------------------------------------------------------------------
+Changes from cgkit-2.0.0alpha1 to cgkit-2.0.0alpha2:
+
+New features:
+
+- New module "glove" that wraps the 5DT Data Glove SDK
+- New module "wintab" that wraps the Wintab API
+- New module "spacedevice" that wraps the 3Dconnexion 3DXWare SDK
+- The viewer generates SpaceMouse/SpaceBall and tablet events
+- New class: FreeCamera
+- STL importer added (ASCII and binary)
+- 3DS import: "parent" option added. The entire scene will be loaded as 
+  children of the specified parent.
+- viewer.py: Most options can now be set in the Globals section of the scene 
+- viewer.py: Background color can be set with the global option "background"
+- GLTexture: Image may also be passed as raw RGB data
+- OGRE-Viewer: Automatic smoothing when normals are not specified. New option 
+  -B/--debug-mode to enable debug output. Shadow technique is now "additive".
+
+Bugfixes:
+
+- The view transformation of the camera was using the local transform instead
+  of the world transform (i.e. attaching the camera to other objects didn't
+  work as expected)
+- ODEDynamics: The time step was only taken during initialization and
+  could be wrong if it was changed afterwards.
+- 3DS import: Meshes without corresponding Node (as generated by Wings 3D,
+  for example) will now be imported, too.
+- cgtypes.quat: fromMat() is now more robust to numerical inaccuracies
+- RIB export: Hierarchies with pivot frames != id were incorrectly transformed
+- OGRE-Viewer: Compile fixes for Linux (gcc). Bugfix: The viewer crashed
+  when using non-OpenGL light sources. 
+- supportlib: When a new controller for a slot was set, there were 
+  situations where the onValueChanged() notification was issued twice.
+  This should be fixed now.
+
+
+----------------------------------------------------------------------
+Beginning of cgkit2 (2.0.0alpha1) - Major changes from cgkit1 to cgkit2:
+
+ - There's a support library written in C++ (which is independent of Python)
+ - Switched from Pyrex to Boost.Python
+ - cgtypes rewrite: The classes now wrap their corresponding C++ classes
+ - The noise module is now wrapped using Boost.Python instead of the raw
+   C/Python API
+ - Additional modules that allow the creation and manipulation of 3D data
+   in memory. This is now the biggest part of the kit and it turns Python 
+   into a scripting language like MEL or MaxScript.
+ - The kit contains tools to visualize a 3D scene either interactively
+   or via RenderMan
+
+######################################################################
+
+Changes from cgkit-1.1.0 to cgkit-1.2.0:
+
+- ri.py: RiEnd() now always flushes the internal buffer
+- ri.py: Bugfix: RiLightSource() didn't handle parameters passed inside a
+  dictionary.
+- cgtypes: Fixed a typo in quat.fromMat() that was generating a NameError in
+  certain cases.
+
+
+Changes from cgkit-1.0.1 to cgkit-1.1.0:
+
+- New module "cgkitinfo" that contains release information
+- New module "slparams" that can extract RenderMan shader parameters 
+  from shader source files.
+- sltokenize: Bugfix: The filename that was passed to the tokeneater was
+  containing a trailing apostroph.
+- cgtypes: 
+  * quat.fromAngleAxis() and the corresponding constructor now return a 
+    unit quaternion.
+  * New method quat.dot() that calculates the dot product
+  * New methods quat.exp() and quat.log()
+  * Quats now support the pow() function and ** operator
+  * Two new functions: slerp() and squad() to do quaternion interpolation
+    (Thanks to Max Rheiner)
+- ri.py: The "version" call in the output stream can be suppressed by
+  calling RiOption(RI_RIBOUTPUT, RI_VERSION, 0) directly after RiBegin()
+  is called.
+  (Thanks to Moritz Möller)
+- ri.py: Support for RIB string handles. RiLightSource, RiAreaLightSource and
+  RiObjectBegin support the parameter "__handleid" (RI_HANDLEID) which can be
+  used to support a user defined string handle. RiIlluminate and 
+  RiObjectInstance were modified accordingly so that they can take string 
+  handles.
+  (Thanks to Moritz Möller)
+- ri.py: The version number in the RIB stream is now set to 3.03 instead
+  of 3.2 as this version is not the version of the RI specification but the
+  version of the Byte Stream protocol.
+  (Thanks to Moritz Möller)
+ 
+
+Changes from cgkit-1.0 to cgkit-1.0.1:
+
+- The binary file for Python 2.2 was broken and the source zip contained
+  a modified version of cgtypes.c (which was necessary for Python 2.3, 
+  Pyrex 0.8.2 and VC6, but didn't work on Linux).
+
+Changes from cgkit-1.0beta3 to cgkit-1.0:
+
+- sl.py: Function ptlined() added.
+- sl.py: Doc strings added.
+- cgtypes: mat4: Added a new method orthographic() which is equivalent
+         to the OpenGL command glOrtho().
+- ri.py: The output of any initial RiArchvieRecord() calls will be placed
+         *before* the version information. 
+- ri.py: RiBegin() doesn't output any header information automatically 
+         anymore, you have to do that manually. However, you can use the
+         new utility function RiuDefaultHeader() to output a couple of 
+         entries that can be determined automatically.
+- ri.py: RiArchiveRecord() allows variables $DATE, $CREATOR, $USER in its
+         format string.
+- ri.py: Passing an empty string to RiBegin() has the same effect as
+         passing RI_NULL (the stream will be written to stdout).
+- ri.py: vec3 values can now be used as any 3-sequence.
+- ri.py: vec3 values can now be used as colors (this wasn't possible because
+         vec3 doesn't support slicing). 
+- ri.py: The values of RI_KA, RI_KD, RI_KS and RI_KR are now upper-case.
+- riutil: New function RiuDefaultHeader() which outputs a default header at
+         the top of the RIB stream.
+- riutil: RiuCoordSystem() takes a shader name as optional argument. 
+- riutil: RiuGrid() takes the number of cells, the shader name and the color
+          as optional arguments.
+- sltokenize: Finished tokenizer. Now it actually does what the 
+         documentation says.
+
+
+Changes from cgkit-1.0beta2 to cgkit-1.0beta3:
+
+- noise: Small change in the noise_template function so that older gcc 
+  versions will also compile the module.
+- Rewrite of cgtypes using Pyrex to speed up the types. The old pure 
+  Python cgtypes are still available in pycgtypes.
+  New in cgtypes:
+  * Comparisons are using an epsilon environment. The threshold can be
+    read and written using getEpsilon() and setEpsilon().
+  * vec3/vec4: All comparison operators are supported now (== != < <= > >=)
+  * vec4: The 4th component can be accessed either by name "w" or "t"
+  * mat3/mat4: All methods taking vec3s as input also accept other
+    3-sequences such as ordinary tuples or lists.
+  * mat4: The index operator returns a vec4 when called with a single int.
+  * mat4.perspective() was broken
+  * New method mat4.setMat3()
+
+
+Changes from cgkit-1.0beta1 to cgkit-1.0beta2:
+
+- noise: On Linux the noise module couldn't be imported because the modules'
+  init function couldn't be found. This was due to C++ name mangling. 
+  For some reason, this was no problem under Windows.
+- noise: Complete rewrite of the noise function. Now there are separate
+  implementations for 2D,3D and 4D.
+- noise: New functions: pnoise(), spnoise, cellnoise(), scellnoise(), 
+  fBm(), turbulence(),
+  vnoise(), vsnoise(), vpnoise(), vspnoise(), vcellnoise(), vscellnoise(), 
+  vfBm(), vturbulence()
+- sl.py: Added cellnoise and pnoise
+- vec4.py: Method normalize() added
+- ri.py: Bugfix in RiSolidBegin(): Apostrophes were missing in output
+- riutil.py: Can be imported even if PIL is not installed. The exception
+  will only be raised if a function is called that actually depends on PIL.

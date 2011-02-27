@@ -1,0 +1,18 @@
+cgkit Tutorials & Examples
+==========================
+
+- `First steps`_: An introductory tutorial
+- Materials: How to change the visual appearance of your objects
+- Animation_: Animating object attributes
+- `Rendering with RenderMan`_: Rendering a scene with a RenderMan compliant renderer
+- `Custom attributes & primitive variables`_: Adding new attributes to objects
+- Plugins: Extending the functionality of the kit
+- Rigid Body Dynamics: Using the Open Dynamics Engine (ODE) to do rigid body dynamics
+- Ogre3D_: Using the Ogre3D viewer
+
+.. _First steps: first_steps/first_steps.html
+.. _Animation: animation/animation.html
+.. _Rendering with RenderMan: renderman/renderman.html
+.. _Custom attributes & primitive variables: custom_vars/custom_vars.html
+.. _Ogre3D: ogre/ogre.html
+

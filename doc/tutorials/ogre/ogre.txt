@@ -1,0 +1,399 @@
+cgkit tutorial: Using viewerOgre.py
+===================================
+
+:Author: Ole Ciliox (ole@ira.uka.de)
+:Date:  2004/12/13
+
+.. contents::
+
+The "Ogre Viewer" ist based on the C++ library OGRE v0.15, see
+http://www.ogre3d.org/ for more details about OGRE.
+
+Basically, you can do everything with the ogre-viewer as with the
+normal viewer and as it is just wrapped C++ code, it is even faster
+when rendering complex scenes and capable of nice effects like
+shadows, special shaders, multiple renderpasses, etc.. It also
+supports DirectX as well as OpenGL.
+
+A. Rendering with OGRE-Materials
+--------------------------------
+
+.. _First Steps: ../first_steps/first_steps.html
+
+So as you did in the `First Steps`_ tutorial, create a new scene called
+``helloOgre.py``.  The file should look like this:
+
+.. code-block:: Python
+
+  TargetCamera(
+      pos    = (3,2,2),
+      target = (0,0,0)
+  )
+
+  GLPointLight(
+      pos       = (0, 0, 4),
+      diffuse   = (0.9, 0.2, 0.2)
+  )
+
+  GLPointLight(
+      pos       = (0, 0, -4),
+      diffuse   = (0.2, 0.0, 0.9)
+  )
+
+  Box(
+      name      = "MyBox",
+      material  = GLMaterial( diffuse = ( 0.2, 0.6, 0.2 ) ) 
+  )
+
+So, like the helloworld.py scene, it consists of just two pointlights,
+a camera and a box.
+
+Render the scene with the ogre-viewer::
+
+  viewerOgre.py -d helloOgre.py
+
+You will notice that the ogre-rendered scene doesn't take the
+materials green diffuse component into account, as you will notice
+just the red and the blue lights at the top and the bottom (remember,
+you can move around in the scene with the ALT key and the mouse
+buttons). It's because OGRE handles materials differently (in respect
+to the standard viewer). You have to create a special material script
+in which you specify colours, passes, pixel- and vertex shaders and
+whole fallback techniques.
+
+Go into your materials directory (subdirectory of "demosOgre") and
+create a file called ``"MyFirstMaterial.material"``, that looks like
+this:
+
+.. code-block:: CPP
+
+  material MyFirstMaterial
+  { 
+      // first, preferred technique
+      technique
+      {
+          // first pass
+          pass
+          {
+               diffuse 0.2 0.6 0.2
+          }
+      }
+  }
+
+Save it and add to your ``helloOgre.py`` the following lines:
+
+.. code-block:: Python
+
+  listWorld()
+  b = worldObject("MyBox")
+  b.setMaterial( Material( "MyFirstMaterial" ) )
+
+Another way to do the same would be to replace the line:
+
+.. code-block:: Python
+
+  material  = GLMaterial( diffuse = ( 0.2, 0.6, 0.2 ) )
+
+with
+
+.. code-block:: Python
+
+  material = Material( "MyFirstMaterial")
+
+Render the scene again with the ogre-viewer, and you will see, that
+the green material component is now taken into account::
+
+  viewerOgre.py -d helloOgre.py
+
+When OGRE can't find the material, or it is not supported by your
+graphics hardware, it will assign a standard bright white
+material, that's why it has been much brighter before.
+
+For more information about using OGRE materials consult the manual at
+http://www.ogre3d.org/docs/manual/manual_16.html#SEC25.
+
+B. Shadows, Pixel Shader, Vertex Shader
+---------------------------------------
+
+The ogre-viewer is internally controlled by an OgreCore Object that
+encapsulates all needed functionality for setup and rendering.
+
+Normally, there is no need to touch the viewerOgre sourcecode - you
+can pass the most important spects as parameters. You can switch
+between "use shadows" (default) "no shadows" (-d). Keep in mind that
+OGRE needs all meshes to be manifold in order to render shadows
+correctly. If you are running the library under Windows and have
+DirectX installed, you can try switching to DirectX rendering mode (-R
+d3d).
+
+Type::
+
+  viewerOgre.py --help 
+
+to get a list for all optional parameters.
+
+Let's create a scene and check out shadow effects. Create a file
+called ogreShadows.py that looks like this:
+
+.. code-block:: Python
+
+  TargetCamera(
+      name   = "MyCam",
+      pos    = (9,6,6),
+      target = (0,0,0) 
+  )
+
+  GLPointLight(
+      pos       = (0, 0, 4),
+      diffuse   = (1, 1, 1) 
+  )
+
+  GLPointLight(
+      pos       = (4, 4, 4),
+      diffuse   = (1, 1, 1)  
+  )
+
+  Box(
+      pos       = (2, 2, 0),
+      name      = "MyBox1" 
+  )
+
+  Box(
+      pos       = (-1, -1, 0),
+      scale     = (3, 2, 2),
+      name      = "MyBox2"
+  )
+
+  Box(
+      pos       = (4, 4, -2),
+      scale     = (3, 2, 1),
+      name      = "MyBox3" 
+  )
+
+  Box(
+      pos       = (0, 0, -2),
+      scale     = (20, 20, 0.2),
+      name      = "MyBoxPlane" 
+  )
+
+There are three boxes that will cast shadows on the groundplane and on
+themselves. The OGRE stencil shadow implementation supports
+self shadowing for single objects.
+
+The scene looks still pretty boring. Let's make a simple animation:
+
+.. code-block:: Python
+
+  def object_path(time=0.0):
+      w = 2.5 * time
+      return vec3(0.5*sin(w), 0.5*cos(w), 0)
+
+  ObjPath = createFunctionComponent(object_path)
+  path = ObjPath()
+  timer.time_slot.connect(path.time_slot)
+
+  box = worldObject("MyBox2")
+  path.output_slot.connect(box.pos_slot)
+
+This connects the output slot of the FunctionComponent ``ObjPath`` to
+the position slot of ``"MyBox2"``, thus making it update its position
+whenever ``ObjPath`` changes its output. So, the box will be hovering
+over the ground, as the z-coordinate remains constant. This way, you
+can quickly do a lot of simple animations.
+
+The next step is to add a simple fragment shader (aka pixel shader)
+and a simple vertex shader.  Firstly, go into your material script
+``"MyFirstMaterial.material"``.  In order to use shaders, you have to
+declare them here first:
+
+.. code-block:: CPP
+
+  fragment_program firstFragmentProgram cg
+  {
+      source firstFragmentProgram.cg
+      entry_point main
+      profiles ps_2_0 arbfp1
+  }
+
+  vertex_program firstVertexProgram cg
+  {
+      source firstVertexProgram.cg
+      entry_point main
+      profiles vs_2_0 arbvp1
+  }
+
+Declaring them is easily done by specifying <shader type> <name>
+<format of shader> (e.g. ``vertex_program firstVertexProgram cg``). You
+also have to declare (for cg shaders) the entry point and the profiles
+to which they should be compiled. Note that you may have difficulties
+with the profiles, depending on your graphics hardware. ``ps_2_0`` for
+example means pixelshader 2.0 (for DirectX), that is only available on
+fully directX 9.0 compatible graphic cards (like ATI Radeon 9500 and
+better), while ``arbfp1`` is an OpenGL pendant for fragment programs of
+this class. Remember that for cg shaders, the amount of calculations
+and functions you may use depends on your selected profiles, so it's a
+good practice to always testcompile them before starting.
+
+The actual shader implementations are in special files that are
+defined with the ``"source"`` keyword. You may also make a hierarchy like
+``shaders/firstVertexProgram.cg``.  So create these two files
+``"firstFragmentProgram.cg"`` and ``"firstVertexProgram.cg"`` and make
+them look like this:
+
+.. code-block:: CPP
+
+  // firstVertexProgram.cg
+  void main( float4 position       : POSITION,
+             float4 normal         : NORMAL,
+             out float4 oPosition  : POSITION,
+             out float4 color      : COLOR,
+	     out float4  magic     : TEXCOORD0,
+             uniform float4x4 modelViewProj,
+             uniform float4x4 modelView )
+  {
+      color = magic;
+      oPosition = mul(modelViewProj, position);
+  }
+
+  // firstFragmentProgram.cg
+  void main( float4 color      : COLOR,
+             float4 position   : POSITION,
+             float4 magicIn    : TEXCOORD0,
+             out float4 oCol   : COLOR )
+  {
+      magic = mul(modelView, position);
+      color = magic;
+      oPosition = mul(modelViewProj, position);
+  }
+
+These are very simple programs and are just adjusting color and
+position (while the color depends on the world- and view
+matrices). So, the next step is to assign these programs in a material
+pass and to provide the two extern parameters to the shader, namely
+``modelViewProj`` and ``modelView``.
+
+This is done in the base material script again, here is how the full
+script file should look like:
+
+.. code-block:: CPP
+
+  fragment_program firstFragmentProgram cg
+  {
+      source firstFragmentProgram.cg
+      entry_point main
+      profiles ps_2_0 arbfp1
+  }
+
+  vertex_program firstVertexProgram cg
+  {
+      source firstVertexProgram.cg
+      entry_point main
+      profiles vs_2_0 arbvp1
+  }
+
+  material MyFirstMaterial
+  {
+      // first, preferred technique
+      technique
+      {
+          // first pass
+          pass
+          {
+               diffuse 0.2 0.9 0.2
+
+              // reference to your vertex program in the pass
+              vertex_program_ref firstVertexProgram
+              {
+
+                  // with need to update regularly
+                  // syntax: param_named_auto <name> <code> <extra params>
+                  param_named_auto modelViewProj   WORLDVIEWPROJ_MATRIX
+                  param_named_auto modelView       WORLDVIEW_MATRIX
+              }
+
+              // reference to your fragment program in the pass
+              fragment_program_ref firstFragmentProgram
+              {
+		    // no parameters needed
+              }	
+          }
+      }
+  }
+
+Now, you have created references to your cg programs (you instanced
+them) and provided the two required matrices as parameters. To see how
+OGRE material scripts handles parameters, parameter types and what
+parameters are available, consult the OGRE manual.
+
+Now it is time to assign the material to your objects. This is again
+done in your scene ``"ogreShadows.py"``:
+
+.. code-block:: Python
+
+  box = worldObject("MyBox1")
+  box.setMaterial(Material("MyFirstMaterial"))
+  box = worldObject("MyBox2")
+  box.setMaterial(Material("MyFirstMaterial"))
+  box = worldObject("MyBox3")
+  box.setMaterial(Material("MyFirstMaterial"))
+  box = worldObject("MyBoxPlane")
+  box.setMaterial(Material("MyFirstMaterial"))
+
+And add an animated camera to the scene like you did before with the
+box, this will make the camera rotate around your nice set of (now
+wildly coloured) cubes:
+
+.. code-block:: Python
+
+  def cam_path(time=0.0):
+      w = 0.5*time
+      a = 14
+      return vec3(a*sin(w), a*cos(w), 2)
+
+  CamPath = createFunctionComponent(cam_path)
+  path = CamPath()
+  timer.time_slot.connect(path.time_slot)
+
+  cam = worldObject("MyCam")
+  path.output_slot.connect(cam.pos_slot)
+
+Render the scene with shadows enabled and shadows disabled and notice
+the difference. As stencil shadows are computed on the cpu, remember
+that when modifying vertices position differently (in a vertex shader)
+than the the fixed-function pipeline does, they are not taken into
+account, as the cpu doesn't know about the modified vertices.
+
+Remember that the vertex and pixel shader overwrite all information
+given by the material script before. This means, that the diffuse
+component specified in the pass has absolutely no effect on the actual
+color of the cube. Additionally you have to make all the calculation,
+as would have the fixed-function pipeline without programs. This
+means, that you have to calculate the right coordinates and color
+values depending on what you want to do. E.g. replacing the line:
+
+.. code-block:: CPP
+
+  oPosition = mul(modelViewProj, position); 
+
+with
+
+.. code-block:: CPP
+
+  oPosition = position; 
+
+in the vertex shader would mean that all coordinates would remain in
+modelspace, without any transformations.
+
+That's it, to be honest, the shaders created here are not very fancy
+or logical, but they should be a guide for further and complicated
+shader proramming and are intended to show some common problems and
+obstacles when starting with shaders for the first time.
+
+---------------------------------------------------------------------
+
+`Back to the tutorial index`_
+
+.. _Back to the tutorial index: ../index.html
+
+
+

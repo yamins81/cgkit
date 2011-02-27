@@ -1,0 +1,507 @@
+cgkit tutorial: Animation
+=========================
+
+:Author: Matthias Baas (mbaas@users.sourceforge.net)
+:Date:  2004/11/16
+
+.. contents::
+
+In this tutorial, you'll learn how you can make your objects move or
+change their color (or whatever attribute) over time. The central part
+of an animation is a slot which represents an individual attribute of
+an object like the color of a material or the position of a world
+object. A collection of slots is usually contained within a
+*component*. Almost every object you create in your scene will be a
+component.
+
+
+Slots & Components
+------------------
+
+As a component is a container for slots, you can iterate over all
+slots contained within a component. In the following example, the
+slots of a sphere world object are examined::
+
+  >>> from cgkit.all import *
+  >>> s=Sphere()
+  >>> for slot in s.iterSlots(): print slot
+  ...
+  angularvel
+  cog
+  dynamics
+  inertiatensor
+  linearvel
+  mass
+  pos
+  rot
+  scale
+  static
+  totalmass
+  transform
+  visible
+  worldtransform
+
+Note that these are the slots of the *world object* and not of the
+geometry itself. That's why the radius slot isn't listed. If you want
+to see the slots of the geometry you have to investigate the geom
+attribute (which is also a component)::
+
+  >>> for slot in s.geom.iterSlots(): print slot
+  ...
+  cog
+  inertiatensor
+  radius
+  segmentsu
+  segmentsv
+
+When you iterate over the slots you actually iterate over their
+names. Once you know a name, you can retrieve the actual slot object
+via the ``slot()`` method::
+
+  >>> pos_slot = s.slot("pos")
+  >>> print pos_slot
+  Slot at 0x0523f540: value:(0, 0, 0) (class support3d::vec3) flags:0  no controller
+    0 dependents:
+
+and, for example, retrieve the value of the slot::
+
+  ....FIXME....
+
+Most components follow the convention that a slot is made available as
+an attribute ``<slotname>_slot`` and its value as ``<slotname>``. So
+the above way of accessing a slot or its value would only be used if
+the name of the slot can only be determined at runtime. But usually,
+you would do something like the following::
+
+  >>> s.pos = vec3(1,2,3)
+  >>> print s.pos
+  (1, 2, 3)
+  >>> print s.pos_slot
+  Slot at 0x0523f540: value:(1, 2, 3) (class support3d::vec3) flags:1  no controller
+    0 dependents:
+
+By the way, above was said that the radius slot of the sphere can only
+be accessed via the geom object and not the world object. That's true
+as long as you want to access the slot via the ``slot()`` method. But if
+you access the slot or its value via attribute access, then you can
+also do that directly on the world object::
+
+  >>> s.radius
+  1.0
+  >>> s.radius_slot
+  <cgkit._core.DoubleSlot object at 0x091935E0>
+
+Well, it is true that the world object does **not** have a radius slot,
+neither a radius attribute. They are actually part of the geom
+object. But as the geom object and the world object are really tightly
+coupled, the world object has a little speciality when it comes to
+attribute lookup. Whenever you try to access an attribute of the world
+object and this attribute isn't there, it will first look in the geom
+object before an exception is generated. So in the above example, you
+were actually accessing the attributes of the geom object. This means
+you can turn any world object into a sphere just by assigning it a
+sphere geometry. Watch this::
+
+  >>> w=WorldObject()
+  >>> w.radius
+  Traceback (most recent call last):
+    File "<stdin>", line 1, in ?
+    File "cgkit\worldobject.py", line 108, in __getattr__
+      raise AttributeError, 'Object "%s" has no attribute "%s"'%(self.name, name)
+  AttributeError: Object "object" has no attribute "radius"
+  >>> w.geom = SphereGeom()
+  >>> w.radius
+  1.0
+
+In fact, the Sphere class is almost the same than the WorldObject
+class except that it accepts some additional parameters in its
+constructor that are passed to the sphere geom.
+
+
+Connecting slots
+----------------
+
+If two slots are of the same type (i.e. their values are of the same
+type), then you can create a directed connection between these two
+slots which will propagate the value from one slot to the other. If
+slot A is connected to slot B, then slot B will always carry the same
+value as slot A. In this case, slot A (or rather the component it is
+contained in) acts as the *controller* of slot B.
+
+This is already the first way how you can achieve an animation, by
+connecting appropriate slots. Here is an example (which you have to
+invoke via the viewer tool, not an interactive shell)::
+
+  s = Sphere()
+  e = Expression("(sin(t), 0, 0)")
+  e.output_slot.connect(s.pos_slot)
+
+If you run this example, you see a sphere moving back and forth. So
+what is happening here? You have created two components, a sphere and
+an expression component and connected the output slot of the
+expression to the position slot of the sphere. This means, the
+position of the sphere will always be the result of evaluating the
+expression. The expression results in a vec3 whose x component is
+controlled by the term sin(t) where the special variable t is
+automatically substituted by the current time. But how does the
+expression component know what the current time is? And when is the
+expression actually evaluated?  Well, the current time is managed by a
+global timer component that is always present in every scene. This
+timer has a time slot containing the current animation time in
+seconds. The expression automatically connects the time slot of the
+global timer with its own "t_slot" which carries the value of the
+variable t (in fact, the expression creates a slot for every variable
+used in the expression, but the t slot is the only one that gets
+connected automatically). That's why t always holds the current time
+whenever the expression is evaluated. And that's whenever the value of
+the expression is required. So the entire update of the sphere's
+position happens in two phases. The first phase starts when the timer
+component increases its time value. Now every slot that directly or
+indirectly depends on the time value is notified so that these slots
+know that their current value (each slot has a cache) is not valid
+anymore. However, the expression is not yet evaluated. This is done in
+the second phase when the position of the sphere is required (this
+phase is initiated by the window refresh in the viewer tool or when
+you read the position of the sphere manually). Now the slot graph is
+travelled in the opposite direction and each slot asks its controlling
+slot for the current value. And that's the time when the expression
+eventually has to be evaluated.
+
+Note that the sphere was only animated because the expression was
+connected with the timer. That will be the case for any attribute that
+is animated. It will either directly or indirectly be tied to the
+timer component. The timer is the heart beat of the entire
+scene. Whenever it stops, the entire scene will stand still. This is
+the reason why the sphere won't change its position when you type in
+the above example directly in a Python shell. You will always get the
+position at time 0s::
+
+  >>> from cgkit.all import *
+  >>> s=Sphere()
+  >>> e=Expression("(sin(t), 0, 0)")
+  >>> e.output_slot.connect(s.pos_slot)
+  >>> print s.pos
+  (0, 0, 0)
+  >>> print s.pos
+  (0, 0, 0)
+  >>> print s.pos
+  (0, 0, 0)
+
+When you're visualizing a scene with the viewer or render tool, it's
+the respective tool that increases the current time. In the Python
+shell you can do that manually::
+
+  >>> getScene().timer().step()
+  >>> print s.pos
+  (0.0399893, 0, 0)
+
+
+Writing your own components
+---------------------------
+
+In some cases you might get away with the components provided by the
+cgkit for creating an animation, but in other cases you just have to
+provide your own controller to get things move the way you want them
+to move.
+
+One way of doing so, is to write your own component that has the
+necessary number of input and output slots and then connect the output
+slots with the objects that you want to animate.
+
+Functional components
+~~~~~~~~~~~~~~~~~~~~~
+
+If your controller is functional, i.e. you can basically write one
+function that takes a few inputs and creates the desired output value,
+then you can actually have cgkit create the component for you. You
+only have to provide the function. Here is an example:
+
+.. code-block:: Python
+
+  # A controller function that takes the average of two vec3 values
+  def average(a=vec3(), b=vec3()):
+      return 0.5*(a+b)
+
+  # Turn the function into a component
+  Average = createFunctionComponent(average)
+
+  # Create two green spheres that are animated by an expression
+  s1 = Sphere( radius=0.1, material=GLMaterial(diffuse=(0,1,0)))
+  Expression("(sin(2*t), cos(3*t), sin(t))").output_slot.connect(s1.pos_slot)
+
+  s2 = Sphere( radius=0.1, material=GLMaterial(diffuse=(0,1,0)))
+  Expression("(cos(3*t), sin(t), sin(2*t))").output_slot.connect(s2.pos_slot)
+
+  # Create a red sphere that will always lie between the green spheres
+  # using the above Average component
+  s3 = Sphere( radius=0.1, material=GLMaterial(diffuse=(1,0,0)))
+  av = Average()
+  s1.pos_slot.connect(av.a_slot)
+  s2.pos_slot.connect(av.b_slot)
+  av.output_slot.connect(s3.pos_slot)
+
+The function ``createFunctionComponent()`` takes a function and returns a
+component class that wraps that function. The component will have a
+slot for each parameter used in the function and will provide its
+output on the output_slot. In this case, the types of the input slots
+are automatically determined by the default values of the
+function. The type of the output value is determined by evaluating the
+function using its default values and inspecting the return value.
+
+**Note**: Be careful to use the exact type for your default values. In
+particular, do not specify an integer value if your parameter is
+actually a float parameter. If you do, the created slot will be an
+integer slot instead of a float slot.
+
+Later in the example, an instance of the ``Average`` class is created and
+the input slots are connected with the positions of the green spheres
+and the output slot drives the position of the red sphere.
+
+You could also use the special variable ``time`` (type: float) in your
+controller function. The corresponding slot will automatically be
+connected to the global timer.
+
+By the way, the above example could also have been written using an
+expression:
+
+.. code-block:: Python
+
+  s3 = Sphere( radius=0.1, material=GLMaterial(diffuse=(1,0,0)))
+  e = Expression("0.5*(a+b)", a=vec3(), b=vec3())
+  s1.pos_slot.connect(e.a_slot)
+  s2.pos_slot.connect(e.b_slot)
+  e.output_slot.connect(s3.pos_slot)
+
+However, you have more freedom in a function where you can also use
+statements. Writing a more complex example is left as an exercise for
+the reader.
+
+Generic components
+~~~~~~~~~~~~~~~~~~
+
+Whenever your controller is more complex and can't be written as a
+single function you have to consider writing your own component
+class. For the sake of simplicity, we will write the above ``Average``
+component without using ``createFunctionComponent()``. Here is the entire
+example:
+
+.. code-block:: Python
+
+  class Average(Component):
+
+      def __init__(self, name="Average", auto_insert=True):
+          Component.__init__(self, name=name, auto_insert=auto_insert)
+
+          # Create the input slots
+          self.a_slot = Vec3Slot()
+          self.b_slot = Vec3Slot()
+          # Create the output slot
+          self.output_slot = ProceduralVec3Slot(self.computeOutput)
+
+          # Add the slots to the component
+          self.addSlot("a", self.a_slot)
+          self.addSlot("b", self.b_slot)
+          self.addSlot("output", self.output_slot)
+
+          # Set up slot dependencies
+          self.a_slot.addDependent(self.output_slot)
+          self.b_slot.addDependent(self.output_slot)
+
+      def computeOutput(self):
+          return 0.5*(self.a+self.b)
+
+      # Create value attributes
+      exec slotPropertyCode("a")
+      exec slotPropertyCode("b")
+      exec slotPropertyCode("output")
+
+
+  s1 = Sphere( radius=0.1, material=GLMaterial(diffuse=(0,1,0)))
+  Expression("(sin(2*t), cos(3*t), sin(t))").output_slot.connect(s1.pos_slot)
+
+  s2 = Sphere( radius=0.1, material=GLMaterial(diffuse=(0,1,0)))
+  Expression("(cos(3*t), sin(t), sin(2*t))").output_slot.connect(s2.pos_slot)
+
+  s3 = Sphere( radius=0.1, material=GLMaterial(diffuse=(1,0,0)))
+  av = Average()
+  s1.pos_slot.connect(av.a_slot)
+  s2.pos_slot.connect(av.b_slot)
+  av.output_slot.connect(s3.pos_slot)
+
+Now we'll walk through the example step by step.
+
+.. code-block:: Python
+
+  class Average(Component):
+
+Every component class has to be subclassed from the ``Component`` base
+class which already defines a few methods such as the ``iterSlots()``
+method, for example.:
+
+.. code-block:: Python
+
+      def __init__(self, name="Average", auto_insert=True):
+          Component.__init__(self, name=name, auto_insert=auto_insert)
+
+The constructor takes the basic arguments that are passed to the
+constructor of the base class. The first argument is the name of the
+component instance and the second is a flag that determines if the
+component instance will be added to the scene automatically or not. If
+it's part of the scene, it's visible to other objects.
+
+.. code-block:: Python
+
+          # Create the input slots
+          self.a_slot = Vec3Slot()
+          self.b_slot = Vec3Slot()
+          # Create the output slot
+          self.output_slot = ProceduralVec3Slot(self.computeOutput)
+
+Here, the actual slot objects are created. For each value type,
+there's a separate slot object. The most common slots are:
+
+- BoolSlot 
+- IntSlot 
+- DoubleSlot 
+- Vec3Slot 
+- Vec4Slot 
+- Mat3Slot 
+- Mat4Slot 
+- QuatSlot 
+
+Each of the above is also available in an array version (such as
+``DoubleArraySlot``, ``Vec3ArraySlot``, ...). An array slot can hold
+an array of a value or an array of fixed arrays of a particular
+value. For example, a ``TriMeshGeom`` stores its vertices as an array
+slot of ``vec3`` and the faces as an array slot of ``int[3]``.
+
+Another flavor of slots are the procedural slots. Normal slots can
+either serve as input or output whereas a procedural slot can only
+serve as output because its value is procedurally computed. In our
+example, the procedure is the ``computeOutput()`` method.
+
+.. code-block:: Python
+
+          # Add the slots to the component
+          self.addSlot("a", self.a_slot)
+          self.addSlot("b", self.b_slot)
+          self.addSlot("output", self.output_slot)
+
+These three lines add the slots to the component. It's not vital to do
+so, but it allows other code to find out what slots are available (via
+iterSlots(), for example).
+
+.. code-block:: Python
+
+          # Set up slot dependencies
+          self.a_slot.addDependent(self.output_slot)
+          self.b_slot.addDependent(self.output_slot)
+
+Now these lines are really important as they establish the
+dependencies between the slots in this component. In our example, the
+output slot depends on the values of the input slots. If you wouldn't
+set up these dependencies the output slot would never invalidate its
+cache and the ``computeOutput()`` method would only be called once and
+then never again.
+
+.. code-block:: Python
+
+      def computeOutput(self):
+          return 0.5*(self.a+self.b)
+
+This is the actual procedure that computes the value of the output
+slot. Note that in this example, the method uses the attribute a and b
+which have not been created in the constructor. However, they are
+defined nevertheless because of the next three lines:
+
+.. code-block:: Python
+
+      # Create value attributes
+      exec slotPropertyCode("a")
+      exec slotPropertyCode("b")
+      exec slotPropertyCode("output")
+
+These lines create the properties ``a``, ``b`` and ``output`` which
+will access the appropriate slots. The ``slotPropertyCode()`` function
+assumes that the corresponding names are called ``a_slot``, ``b_slot``
+and ``output_slot``.
+
+The rest of the example just uses the component class by instancing it
+and connecting the slots.
+
+**Note**: A slot object does not depend on a component class. The
+component is really just a container for the slots. So you can also
+use slots in classes that are not derived from Component. In that
+case, the above example would almost look the same, except that
+Average would not be derived from Component and that the addSlot()
+calls had to be left out. So if you don't need that your class is
+visible to other objects and that you can query the available slots at
+runtime you can also decide not to use the component stuff and keep
+your code a little bit simpler.
+
+
+Using the STEP_FRAME event for animation
+----------------------------------------
+
+So far, all animations were directly driven by the time slot of the
+global timer component. But what if you want to control an object and
+the time dependency is not as straightforward as before? For example,
+you may want to respond to user interactions or do a simulation which
+needs values of the previous frames to compute the state of the next
+frame.
+
+In such cases you can have cgkit call a function or method whenever a
+new frame starts. This is achieved via the event manager that allows
+you to connect functions or methods to arbitrary events. Whenever an
+event occurs the event manager calls all functions that have been
+connected to that event. In our case, it's the ``STEP_FRAME`` event
+that'll do the trick. This event occurs whenever the time value in the
+timer component is increased. Here is an example:
+
+.. code-block:: Python
+
+  def spam():
+      print "Spam & eggs"
+
+  eventmanager.connect(STEP_FRAME, spam)
+
+If you invoke this script via the viewer tool you'll notice that the
+string "Spam & eggs" is continuously printed to the console (one line
+per frame). Now instead of printing garbage you could just as well
+modify some objects in your scene:
+
+.. code-block:: Python
+
+  sphere = Sphere()
+
+  def spam():
+      global sphere
+      sphere.pos = vec3(sin(timer.time), 0, 0)
+
+  eventmanager.connect(STEP_FRAME, spam)
+
+This is a quick (and somewhat dirty) way to get things moving. Note
+however, that this method has a couple of drawbacks:
+
+1. The spam function needs to know the objects it is modifying.
+2. The generated value can not be passed to other objects as well (whereas slots can have an arbitrary number of outgoing connections).
+3. The value is generated even when it isn't required (such as when the sphere is invisible).
+
+It would be better to use a combined method of using slots and the
+STEP_FRAME event. Instead of setting the position of the sphere
+directly, the function could set the value on a slot which is then
+connected to the sphere. Another possibility would be to write a class
+that has slots but isn't directly connected to the timer
+component. Instead, it responds to the STEP_FRAME event where it
+updates its slots and its internal state accordingly. For example,
+this approach could be used for a robot control class that stores the
+internal state of the entire robot and that provides slots containing
+the transformations for the individual parts of the robot. These slots
+can then be connected to the visual representation of the robot which
+lets you see what the robot is doing.
+
+---------------------------------------------------------------------
+
+`Back to the tutorial index`_
+
+.. _Back to the tutorial index: ../index.html

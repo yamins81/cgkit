@@ -1,0 +1,49 @@
+/** \page panels Panels 
+
+Usually the main part of the window is occupied by the panels area.
+A panel is an area for a widget that's embedded in the application window.
+
+\image html "panels_screenshot.png"  A window with seven panels.
+	
+The number of panels and their layout is configurable. The panels are
+the leaves of a tree that determines the layout of the entire panel area.
+Each node separates the area horizontally, vertically or in both directions
+and therefore has either two or four children. The separation between
+the children is a visible \em splitter line that usually can be dragged
+by the user to modify the size of the area allocated to each children.
+The actual widgets that get displayed inside the panels are associated
+with the leaves (the panels) of the tree.
+
+The whole panels system consists of the following main classes:
+
+- \link panellayout::Panels Panels \endlink: This is the "widget" that spans the entire panels area and where
+  the actual panel widgets are placed.
+- \link panellayout::LayoutNode LayoutNode \endlink: This node divides an area into two or four sub areas.
+- \link panellayout::PanelNode PanelNode \endlink: This is the leaf node of the tree which is associated with a panel widget. This class controls the position
+ and size of a widget.
+- \link panellayout::PanelWidget PanelWidget \endlink: This class encapsulates a wx widget and represents the actual widget in the panel.
+- The actual wx widget that gets displayed inside a panel.
+
+\image html "panels.png" 
+
+\section Usage
+
+The panel nodes can be accessed via the Panels object by...
+
+- ...iterating over the %Panels object.
+- ...getting the \em activepanel attribute.
+- ...getting the \em mousepanel attribute.
+- ...by accessing them by their unique name.
+
+A panel widget can be set by...
+
+- ...calling PanelNode.pushWidget()
+- ...by setting the PanelNode attribute \a widget (which sets the widget on
+  top of the stack, replacing the previous one).
+
+A panel can be split by...
+
+- ...calling PanelNode.split()
+
+
+*/

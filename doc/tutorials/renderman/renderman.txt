@@ -1,0 +1,325 @@
+cgkit tutorial: Rendering with RenderMan
+========================================
+
+:Author: Matthias Baas (mbaas@users.sourceforge.net)
+:Date:  2004/11/24
+
+.. contents::
+
+
+Preliminaries
+-------------
+
+Before you can render any images you actually need a renderer that has
+to be available on your system. For this tutorial, this has to be
+a RenderMan compliant renderer such as, for example, PRMan_, Air_, 
+RenderDotC_ or one of the freely available renderers such as
+Aqsis_, Pixie_ or 3Delight_.
+
+Additionally, there has to be a C preprocessor (cpp) on your system
+if you are using the RMMaterial class which is done later in the
+tutorial (the preprocessor is used to prepare a shader source file
+for parsing). If you are on Linux you'll most certainly have one 
+installed already (just try to invoke ``cpp``), on Windows it might
+be that your renderer provides such a preprocessor (as BMRT once did).
+If not, you can try the tools from MinGW_ or Cygwin_.
+
+.. _PRMan: https://renderman.pixar.com/
+.. _Air: http://www.sitexgraphics.com/
+.. _RenderDotC: http://www.dotcsw.com/
+.. _Aqsis: http://aqsis.sf.net/
+.. _Pixie: http://pixie.sf.net/
+.. _3Delight: http://www.3delight.com/
+.. _MinGW: http://www.mingw.org/
+.. _Cygwin: http://www.cygwin.com/
+
+Rendering an image
+------------------
+
+Rendering an image "offline" virtually works the same as visualizing
+it with the interactive viewer tool. The only difference is that you
+visualize the scene with a different tool, namely the *render*
+tool. For example, here is a simple scene (simplescene.py_,
+uvmap.png_) visualized with the viewer tool::
+
+  $ viewer.py simplescene.py
+
+.. image:: rm_viewer.jpg
+.. _simplescene.py: simplescene.py
+.. _uvmap.png: uvmap.png
+
+To get a rendered version of the above scene we simply switch the tool::
+
+  $ render.py simplescene.py
+
+.. image:: rm_render.jpg
+
+The resulting image is a smooth version of the image produced by the 
+viewer tool where the sphere is really a sphere and not a tesselated
+version of a sphere and where the geometry is antialiased. 
+
+By default, the render tool will try to use Aqsis for rendering the image.
+You can switch to another renderer with the --renderer/-r option::
+
+  $ render.py --renderer=3delight simplescene.py
+  $ render.py -rpixie simplescene.py
+
+You can change the default renderer by setting the -r option in the
+environment variable ``RENDER_DEFAULT_OPTIONS``::
+
+  $ set RENDER_DEFAULT_OPTIONS=-r3delight
+
+(the actual command depends on your operating system and shell)
+
+As you could see above, the viewer and render tool both work with the
+same input data, so creating a scene for rendering an image is exactly
+the same as creating a scene for the interactive viewer. This means,
+you can always use the viewer tool to preview your scenes.  And as
+each tool does not only accept Python files you can render any 3D file
+that is supported by cgkit. In the following example, the render tool
+was used to render a 3DS file (the model was downloaded from
+http://www.3dheaven.net/)::
+
+  $ render.py awing.3ds
+
+.. image:: awing_aqsis.jpg
+
+In the case of the 3DS format, the render tool even creates shaders
+that mimic the appearance of the materials in the file. Here is
+the same scene as above rendered with 3D Studio MAX instead of Aqsis:
+
+.. image:: awing_max.jpg
+
+The render tool hides all the details that have to be dealt with
+before a scene can be rendered. This involves the following steps:
+
+- Creating a RIB file from the current scene
+- Translating the materials into RenderMan shaders
+- Converting & copying image maps
+- Compiling the shaders
+- Invoking the renderer
+- TODO: Converting the output image if necessary / creating an animation file
+
+If you have tried one of the above examples yourself, you might have
+noticed that the render tool has created some new files and directories.
+The actual scene file for the renderer is the file ``main.rib`` in the current
+directory. If you want to rerender the scene you can simply pass this
+RIB file to the renderer. Then there are the additional directories
+``geoms``, ``maps`` and ``shaders`` which contain the translated geometry
+(one file per GeomObject used), the maps that were either used as input
+or generated during rendering and the generated shaders. 
+
+Materials vs Shaders
+--------------------
+
+Before invoking the renderer the render tool generates RenderMan shaders
+on the fly. Each material may spawn up to three shaders: a surface shader,
+a displacement shader and an interior shader. Usually, any material that
+comes with cgkit may be used for RenderMan as well. That's why in the
+first example a GLMaterial (and GL light sources) which is actually intended
+to be used together with the interactive viewer tool could also be used to
+render an image via RenderMan. However, the generated shaders are not
+very flexible as they just simulate the standard OpenGL lighting model.
+
+As of this writing there isn't yet a standard material dedicated to
+offline renderings. So far, the closest thing to that is the
+``Material3DS`` class which stores (and its shaders partly
+approximate) the material parameters as they are stored in a 3DS file
+(the corresponding light source is the ``SpotLight3DS``).
+
+Of course, you still have the liberty to write your own shaders from
+scratch. That's where the ``RMMaterial`` class comes into play. This
+class wraps external RenderMan shader files that you can create with your
+favorite text editor or shader creation tool. The shader will 
+automatically be compiled and its parameters will be made available as
+slots.
+
+The following material definition just uses the standard RenderMan
+``constant`` shader:
+
+.. code-block:: Python
+
+  mat = RMMaterial( 
+            surface = "constant",
+            color   = (0.6, 0.5, 0.8)
+  )
+
+The *surface* parameter specifies the surface shader that you want to use
+and it can either be a string as above or an instance of the ``RMShader``
+class:
+
+.. code-block:: Python
+
+  mat = RMMaterial( 
+            surface = RMShader("plastic", Kd=0.8, Ks=0.5),
+            color   = (0.6, 0.5, 0.8)
+  )
+
+Using a RMShader object has the advantage that you can pass shader
+arguments to the shader. In the first example you could only
+specify the color (and opacity) which are separate RenderMan calls
+that can be accessed by *all* shaders that make up a material
+(surface, displacement, interior). That's why they are specified
+as parameters of the entire material and not of an individual shader.
+
+In the above examples, the actual shader was specified by just
+providing its name. In that case, the material doesn't know where the
+actual shader source file is located and you have to compile the
+shaders yourself and make sure that the renderer will find it (above,
+we have ensured these things because we were using standard RenderMan
+shaders that every renderer must support to be RenderMan compliant).
+Another thing is that the material won't know the types of the shader
+parameters which means you have to declare them yourself if you are
+using non-standard parameters.
+
+Here is another example that looks almost the same as above but is quite
+a bit different:
+
+.. code-block:: Python
+
+  mat = RMMaterial(
+            surface = RMShader("shaders/mysurface.sl"),
+            color   = (0.6, 0.5, 0.8)
+  )
+
+The only difference is that instead of a raw shader name, the actual
+shader source file is given. As the material object now knows where
+the source file is located it will take care of the compilation itself.
+Additionally, it will read the file and extract the parameters of the
+shader and make them available as slots. So you can animate the shader
+parameters like any other parameter in your scene. Let's do an example.
+The following is a simple shader that just creates a noise pattern without any
+illumination:
+
+.. code-block:: CPP
+
+  // Surface shader "mysurface.sl"
+
+  surface mysurface(float freq=1.0; float amp=1.0)
+  {
+    Ci = amp*color "rgb" noise(freq*P);
+    Oi = 1;
+  }
+
+You can use this shader as follows:
+
+.. code-block:: Python
+
+  mat = RMMaterial(
+            surface = RMShader("mysurface.sl", freq=2.0, amp=1.5)
+  )
+
+  Sphere( material=mat )
+
+If you render this scene you get the following image:
+
+.. image:: shaderdemo.jpg
+
+Note that you didn't have to compile the shader yourself as you were
+specifying the shader *source file*. Also note that you didn't have to
+declare the shader parameters in the RMShader constructor because
+their type is already known to the material by inspecting the source
+file. You can also read or write the parameters after construction
+like this:
+
+.. code-block:: Python
+
+  mat.freq = 1.7
+  mat.amp = 0.5
+
+Or connect the values to other values in your scene:
+
+.. code-block:: Python
+
+  e = Expression("cos(t)")
+  e.output_slot.connect(mat.amp_slot)
+
+In this example, the shader parameters have been accessed directly via the
+material object. As long as all shader parameter names are unique, you
+can access the parameters of all three shaders via the material. But if,
+for example, the surface shader and the displacement shader of one material
+use parameters with the same name, then you will only be able to access
+the surface shader parameters via the material. The displacement shader
+parameters are shadowed in that case. In such cases you have to take one
+additional indirection and specify that you want to manipulate the
+parameter of the displacement shader:
+
+.. code-block:: Python
+
+  mat = RMMaterial(
+            surface = RMShader("mysurface.sl"),
+            displacement = RMShader("mydisplacement.sl"),
+	    displacementbound = ("current", 1.0)
+  )
+
+  # Set the freq parameter of the surface shader
+  mat.freq = 5.0
+  # Same as above as the surface shader has a higher priority anyway
+  mat.surface.freq = 5.0
+  # Set the freq parameter of the displacement shader
+  mat.displacement.freq = 5.0
+
+
+Using external RIB files
+------------------------
+
+When you create images with cgkit and RenderMan you'll typically use
+some kind of modeling tool to create your assets and then use Python
+and the cgkit to manipulate some aspects of your scene or just use the
+render tool to invoke the renderer.
+
+With this approach there has to be a way to get your models from your
+modeling tool into cgkit. If your modeling tool can export your models
+into a format that cgkit can import then you can simply use the
+``load()`` command to load the model and then modify it accordingly
+(such as changing materials, for example). However, this is not always
+the best way as it might reduce the quality of the models in some
+situations.  For example, if your model is composed of NURBS patches
+and you export it as a 3DS file it will be tesselated into a triangle
+mesh as this is the only type of geometry that a 3DS file can store.
+However, if your modeling tool can already export as RIB, then you
+can use the ``RIBArchive`` class to include the model into your scene.
+You can't use the load() command as cgkit cannot import RIB as of this
+writing. And even if it will some day, it might happen that your RIB file
+contains some stuff that cgkit won't understand. So the RIBArchive approach
+will still be desirable as it blindly includes any RIB you're passing in
+(it doesn't have to parse and understand the file itself).
+
+Here is an example how you would include the file ``mymodel.rib`` to
+your scene (note that you'll only see the model when rendered with
+the render tool. In the interactive viewer tool it will be invisible
+as the file isn't read by cgkit):
+
+.. code-block:: Python
+
+  RIBArchive(
+      filename = "mymodel.rib"
+  )
+
+The RIB file should only contain the raw geometry. You can then still
+assign cgkit materials to the model or position it in your world.
+
+
+Rendering animations
+--------------------
+
+By default, the render tool renders the first frame of an animation.
+You can set a different frame using the -b/--begin option. If you also set
+the -e/--end option the tool will render the entire range.
+Each option takes a time as argument which can be specified either as
+a frame number or a time value in seconds::
+
+  # Render frames 10 to 25
+  render.py myanim.py -b10 -e25
+
+  # Render the time interval 1.0 second to 2.5 seconds
+  render.py myanim.py -b1s -e2.5s
+
+As soon as you use the -e option the frame number will be appended to the
+output file name.
+
+---------------------------------------------------------------------
+
+`Back to the tutorial index`_
+
+.. _Back to the tutorial index: ../index.html

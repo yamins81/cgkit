@@ -1,0 +1,295 @@
+//Export a skeleton hierarchie to ASF and its motion to AMC format
+//
+//setup: put asfamcExporter.mel to the script folder of maya
+//
+//usage: select a root joint and run "asfamcExporter"
+//
+//You must export ASF first then you could export AMC.
+//The default export pose for ASF is the current pose of your character.
+//AMC export could take a while if you want to export many frames.
+//
+//by Bert Voelker, s_bert@ira.uka.de
+//
+//history
+//
+//version 1.1: fixed convert to vector error to run with maya 5.x
+//
+//version 1.0: initial release, tested with Maya 6.x
+
+
+global proc asfamcExporter(){
+	//check selection
+	string $sel[] = `ls -sl -l -hd 1`;
+	string $root = "none";
+	if (size($sel)==0){
+		warning "select one root joint to export!";
+	}else {
+		if (`objectType $sel[0]` != "joint"){
+			warning "select a joint object!";
+		}else {
+			$root = `match "[^/|]*$" $sel[0]`;
+		}
+	}	
+	
+	//gui layout
+	if (`window -q -ex asfamcExporter`) deleteUI asfamcExporter;
+	window -menuBar true -rtf 1 -title "ASF/AMC-Exporter 1.1" asfamcExporter;
+	
+	menu -label "File" -tearOff true;
+ 		menuItem -label "Reset Settings" -c "floatFieldGrp -e -v1 1 \"bv_Length\"; intFieldGrp -e -v1 `playbackOptions -q -minTime` -v2 `playbackOptions -q -maxTime` \"bv_amcRange\";";
+ 		menuItem -divider true;
+ 		menuItem -label "Quit" -c "deleteUI asfamcExporter";
+	menu -label "Help" -helpMenu true;
+ 		menuItem -label "About ASF/AMC-Exporter..." -c "bv_asfamcAbout";
+
+	columnLayout -adjustableColumn true -columnAttach "both" 5;
+		separator -height 5 -style "none";
+		textField -vis 0 -ed false "bv_thisSel";
+		textField -vis 0 -tx "" "bv_OUT";
+		textField -vis 0 -ed false "bv_FID";
+		frameLayout -label " ASF Properties" -labelAlign "center" -borderStyle "etchedIn" -collapsable false;
+			columnLayout -adjustableColumn true;
+				textFieldGrp -label "Skeleton Name" -tx $root -annotation "the name of the skeleton" "bv_ASFName";
+				floatFieldGrp -label "Length" -numberOfFields 1 -annotation "legth parameter to scale skeleton" -v1 1 "bv_Length";
+				setParent..;
+			setParent..;
+		frameLayout -label " AMC Properties" -labelAlign "center" -borderStyle "etchedIn" -collapsable false;
+			columnLayout -adjustableColumn true;
+				intFieldGrp -label "Range (start,end)" -numberOfFields 2 -annotation "Range to export (startframe,endframe)" -v1 `playbackOptions -q -minTime` -v2 `playbackOptions -q -maxTime` "bv_amcRange";
+				setParent..;
+			setParent..;
+		setParent..;
+		separator -height 10 -style "none";
+		rowLayout -numberOfColumns 2 -columnWidth2 180 180  -columnAttach 1 "right" 25 -columnAttach 2 "right" 25;
+			button -label "      ASF Export" -align "center"  -w 100 -annotation "export ASF skeleton definition" -c bv_btn1_klick "bv_btn1";
+			button -en false -label "      AMC Export" -align "center" -w 100 -annotation "export AMC motion" -c bv_btn2_klick "bv_btn2";
+			setParent ..;
+		separator -height 10 -style "none";
+
+	showWindow;
+}
+
+//about
+global proc bv_asfamcAbout(){
+	if (`window -q -ex asfamcAbout`) deleteUI asfamcAbout;
+	window -title "ASF/AMC-Exporter" -rtf 1 -tlb 1 "asfamcAbout";
+	columnLayout -adjustableColumn true -columnAttach "both" 5;
+	separator -height 10 -style "none";
+	text -label "ASF/AMC-Exporter, Version 1.0\n\nCopyright 2005, Bert Voelker, s_bert@ira.uka.de\n\nFor further information or updates visit:\nhttp://cgkit.sourceforge.net/" -align "left";
+	showWindow asfamcAbout;
+}
+
+//save amc
+global proc bv_btn2_klick(){
+	fileBrowserDialog -m 1 -fc "bv_amcSave" -an "AMCExport" -om "SaveAs";
+}
+
+global proc int bv_amcSave( string $filename, string $fileType ){
+	$fileID=`fopen $filename "w"`;
+	string $s = `match "[^/\\]*$" $filename`;
+	if ($fileID == 0 ){
+		error ("Unable to open output file " + $filename + " for writing.");
+		return 0;
+	}
+	
+	//start read motion data
+	string $root = `textFieldGrp -q -tx "bv_ASFName"`;
+	string $fname = `textField -q -tx "bv_FID"`;
+	int $startFrame = `intFieldGrp -q -v1 "bv_amcRange"`;
+	int $endFrame = `intFieldGrp -q -v2 "bv_amcRange"`;
+	//fill headers
+	string $Date = `system ("date /T")`;
+	$Date = `match "^[^(\n\r)]*" $Date`;
+	string $Time = `system ("time /T")`;
+	$Time = `match "^[^(\n\r)]*" $Time`;	
+	global string $bv_STR = "";
+	global string $bv_Hierarchie[];
+	fprint $fileID ("# BIP: " + $root + "\n# Creation time: ");
+	fprint $fileID ($Date + " " + $Time + "\n# ASF: " + $fname + "\n:fully-specified\n:degrees\n");
+	int $i;
+	string $name;
+	string $obj;
+	$root = `textField -q -tx "bv_thisSel"`;
+	//get data from each frame
+	for ($i = $startFrame; $i <= $endFrame; $i++) {
+		//print ("processing frame " + $i + ".");
+		float $pos[] = `getAttr -t $i ($root + ".worldMatrix")`;
+		fprint $fileID ($i + "\nroot " + $pos[12] + " " + $pos[13] + " " + $pos[14] + " 0 0 0\n");	 
+		for ($jnt in $bv_Hierarchie){
+			string $st1 = `match "^[^\@]*" $jnt`;
+			string $st2 = `match "[^\:]*$" $jnt`;
+			$obj = `match "^[^\:]*" $st1`;
+			$name = `match "[^\:]*$" $st1`;
+			float $offrot[] = `getAttr  ($obj + ".rotate")`;
+			string $loc1[] = `spaceLocator -p 0 0 0`;
+			setAttr ($loc1[0] + ".rotate") ($offrot[0]) ($offrot[1]) ($offrot[2]);
+			string $loc2[] = `spaceLocator -p 0 0 0`;
+			parent $loc2[0] $loc1[0];
+			$offrot = `getAttr  ($loc2[0] + ".rotate")`;
+			setAttr ($loc1[0] + ".rotate") ($offrot[0]) ($offrot[1]) ($offrot[2]);
+			float $trot[] = `getAttr -t $i ($obj + ".rotate")`;
+			setAttr ($loc2[0] + ".rotate") $trot[0] $trot[1] $trot[2];
+			$trot = `xform -q -ws -ro $loc2[0]`;
+			fprint $fileID ($name + " " + ($trot[0]) + " " + ($trot[1]) + " " + ($trot[2]) + "\n");
+			delete $loc2;
+			delete $loc1;
+		}
+	}
+	clear($bv_Hierarchie);
+	$bv_STR = "";
+	//end read motion data
+	fclose $fileID;
+	
+	//enable AMC export button
+	button -e -en 0 "bv_btn2";
+	print "Saved AMC file.";
+	return 1;
+}
+
+global proc bv_btn1_klick(){
+	//check selection
+	string $sel[] = `ls -sl -l -hd 1`;
+	if (size($sel)==0){error "select one root joint to export!";}
+	if (`objectType $sel[0]` != "joint"){error "select a joint object!";}
+	textField -e -tx `match "[^/|]*$" $sel[0]` "bv_thisSel";
+	string $selection = `textField -q -tx "bv_thisSel"`;
+	string $root = `textFieldGrp -q -tx "bv_ASFName"`;
+
+	//fill headers
+	string $Date = `system ("date /T")`;
+	$Date = `match "^[^(\n\r)]*" $Date`;
+	string $Time = `system ("time /T")`;
+	$Time = `match "^[^(\n\r)]*" $Time`;	
+	global string $bv_STR = "";
+	global string $bv_Hierarchie[];
+	clear($bv_Hierarchie);
+	$bv_STR += ("# BIP root: " + $root + "\n# Creation time: ");
+	$bv_STR += ($Date + " ");
+	$bv_STR += $Time;
+	$bv_STR += "\n:version 1.10\n:name ";
+	$bv_STR += ($root + "\n");
+	$bv_STR += ":units\n  mass 1.0\n  length ";
+	$bv_STR += `floatFieldGrp -q -v1 "bv_Length"`;
+	$bv_STR += "\n  angle deg\n:root\n";
+	$bv_STR += ("  axis " + `xform -q -ws -roo $selection` + "\n");
+	$bv_STR += "  order tx ty tz rz ry rx\n";
+	
+	float $pos[] = `xform -q -ws -t $selection`;
+	$bv_STR += ("  position " + $pos[0] + " " + $pos[1] + " " + $pos[2] + "\n");
+	
+	string $parent[] = `listRelatives -f -p $selection`;
+	if (size($parent) == 0){
+		$bv_STR += ("  orientation 0 0 0\n");
+	}else{
+		float $rot[] = `xform -q -ws -ro $parent[0]`;
+		$bv_STR += ("  orientation " + $rot[0] + " " + $rot[1] + " " + $rot[2] + "\n");
+	}
+	
+	//bonedata
+	$bv_STR += ":bonedata\n";
+	bv_walkBonedata($selection);
+	
+	//hierarchie
+	$bv_STR += (":hierarchy\n  begin\n    root ");
+	string $childs[] = `listRelatives -c -f -type joint $selection`;
+	for ($c in $childs){
+		$bv_STR += (`match "[^/|]*$" $selection` + "_" + `match "[^/|]*$" $c` + " ");
+	}
+	$bv_STR += "\n";
+	bv_walkHierachie($selection);
+	$bv_STR += "  end\n";
+
+	fileBrowserDialog -m 1 -fc "bv_asfSave" -an "ASFExport" -om "SaveAs";
+	$bv_STR = "";
+}
+
+global proc int bv_asfSave( string $filename, string $fileType ){
+	$fileID=`fopen $filename "w"`;
+	string $s = `match "[^/\\]*$" $filename`;
+	textField -e -tx $s "bv_FID"; 
+	if ($fileID == 0 ){
+		error ("Unable to open output file " + $filename + " for writing.");
+		return 0;
+	}
+	//enable AMC export button
+	button -e -en 1 "bv_btn2";
+	
+	global string $bv_STR;
+	fprint $fileID $bv_STR;
+	fclose $fileID;
+	print "Saved ASF file.";
+	return 1;
+}
+
+//walk through hierarchie
+global proc bv_walkHierachie(string $j){
+	global string $bv_STR;
+	string $childs[] = `listRelatives -c -f -type joint $j`;
+	for ($c in $childs){
+		string $nchilds[] = `listRelatives -c -f -type joint $c`;
+		if (size($nchilds) != 0){
+			$bv_STR += ("    " + `match "[^/|]*$" $j` + "_" + `match "[^/|]*$" $c` + " ");
+			for ($cn in $nchilds){
+				$bv_STR += (`match "[^/|]*$" $c` + "_" + `match "[^/|]*$" $cn` +" ");
+			}
+			$bv_STR += "\n";
+			bv_walkHierachie($c);	
+		}
+	}
+}
+
+
+global proc bv_walkBonedata(string $j){
+	global string $bv_STR;
+	global string $bv_Hierarchie[];
+	string $childs[] = `listRelatives -c -f -type joint $j`;
+	//for Maya5
+	float $pF0[] = `xform -q -ws -t $j`;
+	vector $p0 = <<$pF0[0],$pF0[1],$pF0[2]>>;
+	for ($c in $childs){
+		$bv_STR += ("  begin\n    name " + `match "[^/|]*$" $j` + "_" + `match "[^/|]*$" $c` + "\n");
+		float $pF0[] = `xform -q -ws -t $c`;
+		vector $p1 = <<$pF0[0],$pF0[1],$pF0[2]>>;
+		$p1 -= $p0;
+		float $dirn[] = {$p1.x, $p1.y, $p1.z};
+		int $i = `normalize $dirn`;
+		if ($i == "1"){
+			$bv_STR += ("    direction " + $dirn[0] + " " + $dirn[1] + " " + $dirn[2] + "\n");
+		}else{
+			$bv_STR += ("    direction 0 1 0\n");
+		}
+		float $dir[] = `getAttr ($c + ".t")`;
+		float $len = mag(<<$dir[0],$dir[1],$dir[2]>>);
+		$bv_STR += ("    length " + $len + "\n");
+		float $rot[] = `xform -q -ws -ro $j`;
+		$bv_STR += ("    axis " + $rot[0] + " " + $rot[1] + " " + $rot[2] + " " + `xform -q -ws -roo $j` + "\n");
+		$bv_Hierarchie = stringArrayCatenate($bv_Hierarchie,{($j + ":" + `match "[^/|]*$" $j` + "_" + `match "[^/|]*$" $c`) + "@" + $rot[0] + " " + $rot[1] + " " + $rot[2]});
+		$bv_STR += ("    dof" );
+		if (`getAttr ($j + ".jointTypeX")`){$bv_STR += " rx";}
+		if (`getAttr ($j + ".jointTypeY")`){$bv_STR += " ry";}
+		if (`getAttr ($j + ".jointTypeZ")`){$bv_STR += " rz";}
+		
+		$bv_STR += "\n    limits (";
+		int $bool[] = `transformLimits -q -erx`;
+		float $rotLim[] = `transformLimits -q -rx`;
+		if ($bool[0]){$bv_STR += ($rotLim[0] + " ");}else{$bv_STR += "-inf ";}
+		if ($bool[1]){$bv_STR += ($rotLim[1] + ")\n");}else{$bv_STR += "inf)\n";}
+		
+		int $bool[] = `transformLimits -q -ery`;
+		float $rotLim[] = `transformLimits -q -ry`;
+		if ($bool[0]){$bv_STR += ("           (" + $rotLim[0] + " ");}else{$bv_STR += "           (-inf ";}
+		if ($bool[1]){$bv_STR += ($rotLim[1] + ")\n");}else{$bv_STR += "inf)\n";}
+		
+		int $bool[] = `transformLimits -q -erz`;
+		float $rotLim[] = `transformLimits -q -rz`;
+		if ($bool[0]){$bv_STR += ("           (" + $rotLim[0] + " ");}else{$bv_STR += "           (-inf ";}
+		if ($bool[1]){$bv_STR += ($rotLim[1] + ")\n");}else{$bv_STR += "inf)\n";}
+		
+		$bv_STR += "  end\n";
+		
+		if (size(`listRelatives -c -f -type joint $c`) != 0){
+			bv_walkBonedata($c);
+		}
+	}
+}
+
