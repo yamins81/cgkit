@@ -286,7 +286,7 @@ class MTLReader(WavefrontReaderBase):
             self.map_Bump(args[0], opts)
 
     def handle_bump(self, *mapargs):
-        self.handle_map_Bump(*mapargs)
+        self.handle_map_bump(*mapargs)
 
     def handle_refl(self, *mapargs):
         """Reflection map."""
