@@ -1,4 +1,4 @@
-file /Users/dyamins/Desktop/cgkit-mod/supportlib/SConstruct,line 60:
+file /Users/dyamins/cgkit-mod/supportlib/SConstruct,line 60:
 	Configure(confdir = .sconf_temp)
 scons: Configure: Checking for C++ header file boost/shared_ptr.hpp... 
 scons: Configure: ".sconf_temp/conftest_0.cpp" is up to date.

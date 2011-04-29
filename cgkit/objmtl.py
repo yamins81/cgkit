@@ -78,7 +78,7 @@ class WavefrontReaderBase:
             a = line2.split()
             cmd = a[0]
             args = a[1:]
-            handler = getattr(self, "handle_%s"%cmd, None)
+            handler = getattr(self, "handle_%s" % cmd.lower(), None)
             if handler!=None:
                 handler(*args)
             else:
@@ -192,32 +192,32 @@ class MTLReader(WavefrontReaderBase):
         """Illumination model."""
         self.illum(int(model))
 
-    def handle_Ns(self, shininess):
+    def handle_ns(self, shininess):
         """Shininess coefficient.
         """
         self.Ns(float(shininess))
 
-    def handle_Ka(self, r, g, b):
+    def handle_ka(self, r, g, b):
         """Ambient color.
         """
         self.Ka(vec3(float(r), float(g), float(b)))
 
-    def handle_Kd(self, r, g, b):
+    def handle_kd(self, r, g, b):
         """Diffuse color.
         """
         self.Kd(vec3(float(r), float(g), float(b)))
 
-    def handle_Ks(self, r, g, b):
+    def handle_ks(self, r, g, b):
         """Specular color.
         """
         self.Ks(vec3(float(r), float(g), float(b)))
 
-    def handle_Ke(self, r, g, b):
+    def handle_ke(self, r, g, b):
         """Emissive color.
         """
         self.Ke(vec3(float(r), float(g), float(b)))
 
-    def handle_Tr(self, alpha):
+    def handle_tr(self, alpha):
         """Transparency."""
         self.Tr(float(alpha))
 
@@ -225,7 +225,7 @@ class MTLReader(WavefrontReaderBase):
         """Dissolve factor (transparency)."""
         self.d(float(alpha))
 
-    def handle_Tf(self, *args):
+    def handle_tf(self, *args):
         """Transparency (as color)."""
         if len(args)==1:
             v = vec3(float(args[0]))
@@ -235,7 +235,7 @@ class MTLReader(WavefrontReaderBase):
         
         self.Tf(v)
 
-    def handle_Ni(self, ref):
+    def handle_ni(self, ref):
         """Refraction index."""
         self.Ni(float(ref))
 
@@ -243,31 +243,31 @@ class MTLReader(WavefrontReaderBase):
         """Sharpness value."""
         self.sharpness(float(v))
 
-    def handle_map_Ka(self, *mapargs):
+    def handle_map_ka(self, *mapargs):
         """Ambient texture file."""
         opts, args = self.parseMapArgs(mapargs)
         if len(args)>0:
             self.map_Ka(args[0], opts)
 
-    def handle_map_Kd(self, *mapargs):
+    def handle_map_kd(self, *mapargs):
         """Diffuse texture file."""
         opts, args = self.parseMapArgs(mapargs)
         if len(args)>0:
             self.map_Kd(args[0], opts)
 
-    def handle_map_Ks(self, *mapargs):
+    def handle_map_ks(self, *mapargs):
         """Specular texture file."""
         opts, args = self.parseMapArgs(mapargs)
         if len(args)>0:
             self.map_Ks(args[0], opts)
 
-    def handle_map_Ke(self, *mapargs):
+    def handle_map_ke(self, *mapargs):
         """Emission texture file."""
         opts, args = self.parseMapArgs(mapargs)
         if len(args)>0:
             self.map_Ke(args[0], opts)
 
-    def handle_map_Ns(self, *mapargs):
+    def handle_map_ns(self, *mapargs):
         """Shininess texture file."""
         opts, args = self.parseMapArgs(mapargs)
         if len(args)>0:
@@ -279,7 +279,7 @@ class MTLReader(WavefrontReaderBase):
         if len(args)>0:
             self.map_d(args[0], opts)
 
-    def handle_map_Bump(self, *mapargs):
+    def handle_map_bump(self, *mapargs):
         """Bump map texture file."""
         opts, args = self.parseMapArgs(mapargs)
         if len(args)>0:
